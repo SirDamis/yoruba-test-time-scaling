@@ -112,3 +112,24 @@ Each run writes:
 - `runs/<run_id>/manifest.json`: run metadata and row counts.
 
 The runner keeps all experiment artifacts in `runs/`, which is ignored by git.
+
+## Evaluation Pipeline
+
+After inference runs complete, evaluate them with:
+
+```bash
+# Evaluate all runs (writes per-run JSON to results/pass_vs_select/)
+uv run python scripts/evaluate_runs.py
+
+# Evaluate a specific run
+uv run python scripts/evaluate_runs.py --run-id 00000
+
+# Write aggregated results into a single file
+uv run python scripts/evaluate_runs.py --run-id 00000 --output results/aggregated.json
+```
+
+The script reads `candidates.jsonl` and `selections.jsonl` for each run and computes:
+
+- **pass@N**: whether *any* of the N sampled candidates contains the correct answer (oracle upper bound).
+- **select@N**: whether the selection method (e.g. majority-vote) picked the correct answer.
+- **gap**: the difference between pass@N and select@N — how often the correct answer was generated but the selector missed it.
