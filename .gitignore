@@ -1,0 +1,26 @@
+data/
+
+# Virtual environments and local tools
+.venv/
+.tools/
+
+# Python caches
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Local data and generated downloads
+data/raw/
+data/normalized/
+data/manual_validation/
+
+# Local environment files
+.env
+.env.*
+
+# Logs and OS/editor noise
+*.log
+.DS_Store
+Thumbs.db
