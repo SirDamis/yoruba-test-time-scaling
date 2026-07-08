@@ -7,7 +7,10 @@ from typing import Any
 from .io_utils import read_json
 
 
-SUPPORTED_PROMPT_STYLES = {"english_cot", "yoruba_cot", "best_of_n_cot"}
+SUPPORTED_PROMPT_STYLES = {
+    "english_cot", "yoruba_cot", "best_of_n_cot",
+    "english_direct", "yoruba_direct", "best_of_n_direct",
+}
 SUPPORTED_SELECTIONS = {"first", "majority_vote"}
 
 
@@ -96,7 +99,7 @@ class InferenceMethodConfig:
 
         reasoning_language = row.get("reasoning_language")
         if reasoning_language is None:
-            reasoning_language = "yo" if prompt_style == "yoruba_cot" else "en"
+            reasoning_language = "yo" if prompt_style in {"yoruba_cot", "yoruba_direct"} else "en"
 
         return cls(
             name=str(row["name"]),

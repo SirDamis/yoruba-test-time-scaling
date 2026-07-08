@@ -63,7 +63,7 @@ Downloaded JSONL rows retain only the fields needed for evaluation:
 
 ## Cloud Inference Pipeline
 
-`configs/cloud_inference.json` defines the first cloud-ready inference sweep:
+`configs/inference.json` defines the first cloud-ready inference sweep:
 
 - Yoruba-only datasets from the compact JSONL downloads.
 - Hugging Face `transformers` as the main backend.
@@ -83,14 +83,14 @@ Then run the Transformers-backed sweep. Set `HF_TOKEN` if a gated model such as 
 
 ```bash
 export HF_TOKEN="..."
-uv run python scripts/run_inference.py --config configs/cloud_inference.json
+uv run python scripts/run_inference.py --config configs/inference.json
 ```
 
 Useful cloud smoke-run filters:
 
 ```bash
 uv run python scripts/run_inference.py \
-  --config configs/cloud_inference.json \
+  --config configs/inference.json \
   --datasets afrimgsm \
   --models qwen2.5-7b \
   --methods best_of_n_cot_n4 \

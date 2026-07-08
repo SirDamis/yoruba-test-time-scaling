@@ -21,6 +21,12 @@ def render_prompt(example: InferenceExample, prompt_style: str) -> PromptBundle:
         return render_yoruba_cot_prompt(example)
     if prompt_style == "best_of_n_cot":
         return render_english_cot_prompt(example)
+    if prompt_style == "english_direct":
+        return render_english_direct_prompt(example)
+    if prompt_style == "yoruba_direct":
+        return render_yoruba_direct_prompt(example)
+    if prompt_style == "best_of_n_direct":
+        return render_best_of_n_direct_prompt(example)
     raise ValueError(f"Unsupported prompt_style: {prompt_style!r}")
 
 
@@ -58,6 +64,55 @@ def render_yoruba_cot_prompt(example: InferenceExample) -> PromptBundle:
 
 
 
+def render_english_direct_prompt(example: InferenceExample) -> PromptBundle:
+    system = (
+        "You are solving questions from a Yoruba benchmark. "
+        "Provide the correct final answer directly, without step-by-step reasoning."
+    )
+    user = "\n\n".join(
+        [
+            render_problem_block(example),
+            render_answer_format(example),
+            "Output only the final answer without reasoning.",
+            "End with exactly one final line in this format:\nFinal answer: <answer>",
+        ]
+    )
+    return PromptBundle(system=system, user=user)
+
+
+def render_yoruba_direct_prompt(example: InferenceExample) -> PromptBundle:
+    system = (
+        "O n yanju awon ibeere lati idanwo Yorùbá. "
+        "Fun idahun ikẹhin taara, laisi ironu-igbesẹ-nipase-igbesẹ."
+    )
+    user = "\n\n".join(
+        [
+            render_problem_block(example),
+            render_answer_format(example),
+            "Ko idahun ikẹhin nikan jade laisi ironu-igbesẹ-nipase-igbesẹ.",
+            "Pari pelu ila ikeyin kan pere ni ona yi:\nFinal answer: <idahun>",
+        ]
+    )
+    return PromptBundle(system=system, user=user)
+
+
+def render_best_of_n_direct_prompt(example: InferenceExample) -> PromptBundle:
+    system = (
+        "You are solving questions from a Yoruba benchmark. This is one sampled candidate "
+        "in a Best-of-N run. Provide the correct final answer directly, "
+        "without step-by-step reasoning."
+    )
+    user = "\n\n".join(
+        [
+            render_problem_block(example),
+            render_answer_format(example),
+            "Output only the final answer without reasoning.",
+            "End with exactly one final line in this format:\nFinal answer: <answer>",
+        ]
+    )
+    return PromptBundle(system=system, user=user)
+
+
 def render_problem_block(example: InferenceExample) -> str:
     parts = [f"Question:\n{example.question}"]
     if example.choices:
@@ -69,7 +124,7 @@ def render_answer_format(example: InferenceExample) -> str:
     if example.answer_type == "choice":
         return "Answer format: output only the option letter, such as A, B, C, or D."
     if example.answer_type == "number":
-        return "Answer format: output only the final number, without extra explanation."
+        return "Answer format: output only the final number"
     return "Answer format: output a concise final answer in Yoruba."
 
 
