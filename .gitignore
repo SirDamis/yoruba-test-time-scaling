@@ -1,5 +1,3 @@
-data/
-
 # Virtual environments and local tools
 .venv/
 .tools/
