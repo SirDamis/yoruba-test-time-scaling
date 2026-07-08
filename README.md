@@ -8,12 +8,11 @@ The project evaluates **Yoruba tasks only**. English appears only inside inferen
 
 - Compact Yoruba JSONL benchmark exports.
 - Dataset validation and generic raw-to-normalized adapter tooling.
-- Prompt templates for direct answering, Yoruba CoT, English CoT, translation pivoting, mixed reasoning, and budget forcing.
-- Config-driven experiment runner with mock, Hugging Face, and OpenAI-compatible/vLLM-ready backends.
-- Test-time compute methods: greedy, self-consistency, Best-of-N answer verifier, Best-of-N trace verifier, and oracle/pass@N analysis.
-- Evaluation metrics: accuracy, exact/F1, pass@N, select@N, language compliance, token counts, estimated cost, and tokens per correct answer.
-- Analysis scripts for aggregation, validation sampling, and paper-ready plots.
-- A five-example Yoruba smoke dataset that runs without GPU dependencies.
+- Prompt templates for Yoruba CoT and English CoT on Yoruba tasks.
+- Config-driven cloud inference runner with a Hugging Face Transformers backend by default.
+- Secondary OpenAI-compatible/vLLM-ready chat endpoint backend.
+- Best-of-N candidate sampling with majority-vote selection.
+- Candidate and selected-answer JSONL artifacts with exact-match correctness flags.
 
 
 
@@ -36,6 +35,8 @@ This project is configured for `uv`:
 
 ```bash
 uv lock
+uv venv
+uv pip install -r requirements.txt
 uv run python scripts/download_hf_datasets.py --dataset all
 ```
 
@@ -54,18 +55,60 @@ Downloaded JSONL rows retain only the fields needed for evaluation:
   "answer_type": "choice|number|text|freeform|instruction",
   "choices": ["A. ...", "B. ..."],
   "gold_answer": "B",
-  "question": "Yoruba prompt",
+  "question": "Yoruba prompt"
 }
 ```
 
 `choices` is `null` for datasets that do not provide multiple-choice options. The internal normalizer still validates Yoruba-only rows before writing the compact export.
 
-## Main Experiment Config
+## Cloud Inference Pipeline
 
-`configs/main_yoruba_ttc.json` defines the intended full study:
+`configs/cloud_inference.json` defines the first cloud-ready inference sweep:
 
-- Yoruba-only benchmark path.
-- Open-model backend placeholders for Qwen, Llama, Gemma, and optional African-adapted models.
-- TTC sweeps over `N = 1, 4, 8, 16, 32, 64`.
-- Reasoning-language interventions and budget-forcing variants.
-The smoke config uses the deterministic mock backend so the pipeline can be verified before cloud runs.
+- Yoruba-only datasets from the compact JSONL downloads.
+- Hugging Face `transformers` as the main backend.
+- Three inference options: English CoT, Yoruba CoT, and English Best-of-N CoT.
+- Best-of-N CoT uses English reasoning with majority-vote selection over `N = 4, 6, 8, 10, 12, 16, 24, 32`.
+- Model entries across size labels so small, medium, and larger models can be compared.
+
+On the cloud machine, first install dependencies and create the normalized data files:
+
+```bash
+uv venv
+uv pip install -r requirements.txt
+uv run python scripts/download_hf_datasets.py --dataset all
+```
+
+Then run the Transformers-backed sweep. Set `HF_TOKEN` if a gated model such as Llama or Gemma needs authentication.
+
+```bash
+export HF_TOKEN="..."
+uv run python scripts/run_inference.py --config configs/cloud_inference.json
+```
+
+Useful cloud smoke-run filters:
+
+```bash
+uv run python scripts/run_inference.py \
+  --config configs/cloud_inference.json \
+  --datasets afrimgsm \
+  --models qwen2.5-7b \
+  --methods best_of_n_cot_n4 \
+  --limit 5
+```
+
+The secondary backend is OpenAI-compatible chat completions, for example a vLLM server. Use `configs/openai_compatible_inference.json` for that path:
+
+```bash
+export OPENAI_COMPATIBLE_BASE_URL="http://localhost:8000/v1"
+export OPENAI_COMPATIBLE_API_KEY="EMPTY"
+uv run python scripts/run_inference.py --config configs/openai_compatible_inference.json
+```
+
+Each run writes:
+
+- `runs/<run_id>/candidates.jsonl`: every sampled candidate response.
+- `runs/<run_id>/selections.jsonl`: one selected answer per dataset/model/method/example.
+- `runs/<run_id>/manifest.json`: run metadata and row counts.
+
+The runner keeps all experiment artifacts in `runs/`, which is ignored by git.

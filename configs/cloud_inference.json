@@ -1,0 +1,121 @@
+{
+  "run_id": "yoruba_ttc_transformers",
+  "output_dir": "runs",
+  "seed": 20260708,
+  "default_request_timeout_s": 180,
+  "continue_on_error": false,
+  "datasets": [
+    {
+      "name": "afrimgsm",
+      "path": "data/normalized/math-reasoning/afrimgsm/all.jsonl",
+      "task": "math",
+      "source_dataset": "afrimgsm"
+    },
+    {
+      "name": "afrimmlu",
+      "path": "data/normalized/question-answering/afrimmlu/all.jsonl",
+      "task": "qa",
+      "source_dataset": "afrimmlu"
+    },
+    {
+      "name": "afriqa",
+      "path": "data/normalized/question-answering/afriqa/all.jsonl",
+      "task": "qa",
+      "source_dataset": "afriqa"
+    },
+    {
+      "name": "naijarc",
+      "path": "data/normalized/question-answering/naijarc/all.jsonl",
+      "task": "reading_comprehension",
+      "source_dataset": "naijarc"
+    }
+  ],
+  "models": [
+    {
+      "name": "qwen2.5-3b",
+      "backend": "transformers",
+      "model": "Qwen/Qwen2.5-3B-Instruct",
+      "size_label": "3B",
+      "cost_per_1k_tokens": 0.0,
+      "backend_kwargs": {
+        "device_map": "auto",
+        "torch_dtype": "auto",
+        "token_env": "HF_TOKEN"
+      }
+    },
+    {
+      "name": "qwen2.5-7b",
+      "backend": "transformers",
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "size_label": "7B",
+      "cost_per_1k_tokens": 0.0,
+      "backend_kwargs": {
+        "device_map": "auto",
+        "torch_dtype": "auto",
+        "token_env": "HF_TOKEN"
+      }
+    },
+    {
+      "name": "qwen2.5-14b",
+      "backend": "transformers",
+      "model": "Qwen/Qwen2.5-14B-Instruct",
+      "size_label": "14B",
+      "cost_per_1k_tokens": 0.0,
+      "backend_kwargs": {
+        "device_map": "auto",
+        "torch_dtype": "auto",
+        "token_env": "HF_TOKEN"
+      }
+    },
+    {
+      "name": "llama3.1-8b",
+      "backend": "transformers",
+      "model": "meta-llama/Llama-3.1-8B-Instruct",
+      "size_label": "8B",
+      "cost_per_1k_tokens": 0.0,
+      "backend_kwargs": {
+        "device_map": "auto",
+        "torch_dtype": "auto",
+        "token_env": "HF_TOKEN"
+      }
+    },
+    {
+      "name": "gemma2-9b",
+      "backend": "transformers",
+      "model": "google/gemma-2-9b-it",
+      "size_label": "9B",
+      "cost_per_1k_tokens": 0.0,
+      "backend_kwargs": {
+        "device_map": "auto",
+        "torch_dtype": "auto",
+        "token_env": "HF_TOKEN"
+      }
+    }
+  ],
+  "methods": [
+    {
+      "name": "english_cot",
+      "prompt_style": "english_cot",
+      "selection": "first",
+      "n": 1,
+      "temperature": 0.0,
+      "max_tokens": 1024
+    },
+    {
+      "name": "yoruba_cot",
+      "prompt_style": "yoruba_cot",
+      "selection": "first",
+      "n": 1,
+      "temperature": 0.0,
+      "max_tokens": 1024
+    },
+    {
+      "name": "best_of_n_cot",
+      "prompt_style": "best_of_n_cot",
+      "selection": "majority_vote",
+      "n_values": [4, 6, 8, 10, 12, 16, 24, 32],
+      "temperature": 0.7,
+      "max_tokens": 1024
+    }
+  ]
+}

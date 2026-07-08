@@ -13,6 +13,7 @@ __pycache__/
 data/raw/
 data/normalized/
 data/manual_validation/
+runs/
 
 # Local environment files
 .env

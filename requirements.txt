@@ -1,0 +1,7 @@
+torch>=2.3
+transformers>=4.45,<5
+accelerate>=0.33
+datasets>=2.20
+sentencepiece>=0.2
+protobuf>=4.25
+safetensors>=0.4
