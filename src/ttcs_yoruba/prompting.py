@@ -20,21 +20,21 @@ def render_prompt(example: InferenceExample, prompt_style: str) -> PromptBundle:
     if prompt_style == "yoruba_cot":
         return render_yoruba_cot_prompt(example)
     if prompt_style == "best_of_n_cot":
-        return render_best_of_n_cot_prompt(example)
+        return render_english_cot_prompt(example)
     raise ValueError(f"Unsupported prompt_style: {prompt_style!r}")
 
 
 def render_english_cot_prompt(example: InferenceExample) -> PromptBundle:
     system = (
-        "You solve Yoruba benchmark questions. Reason step by step in English, "
-        "but keep the final answer appropriate for the Yoruba task."
+        "You are solving questions from a Yoruba benchmark. "
+        "Think carefully through the problem in English. Provide the correct final answer."
     )
     user = "\n\n".join(
         [
             render_problem_block(example),
             render_answer_format(example),
-            "Reason step by step in English.",
-            "End with exactly one final line in this format:\nFinal answer: <answer>",
+            "Think through the problem step by step in English.",
+            "At the end, output: Final answer: <answer>"
         ]
     )
     return PromptBundle(system=system, user=user)
@@ -42,34 +42,20 @@ def render_english_cot_prompt(example: InferenceExample) -> PromptBundle:
 
 def render_yoruba_cot_prompt(example: InferenceExample) -> PromptBundle:
     system = (
-        "O n dahun awon ibeere idanwo Yoruba. Lo ede Yoruba fun ironu re, "
-        "ki idahun ikeyin si ye kedere."
+        "O n yanju awon ibeere lati idanwo Yorùbá.",
+        "Ronu daradara nipa ibeere naa ni èdè Yorùbá.",
+        "Fun idahun ikẹhin ti o tọ."
     )
     user = "\n\n".join(
         [
             render_problem_block(example),
             render_answer_format(example),
-            "Ronu ni ede Yoruba ni igbese-nipase-igbese.",
-            "Pari pelu ila ikeyin kan pere ni ona yi:\nFinal answer: <idahun>",
+            "Ronu nipa ibeere naa ni igbese-nipasẹ-igbesẹ ni Yorùbá."
+            "Ni ipari, kọ: Final answer: <answer>",
         ]
     )
     return PromptBundle(system=system, user=user)
 
-
-def render_best_of_n_cot_prompt(example: InferenceExample) -> PromptBundle:
-    system = (
-        "You solve Yoruba benchmark questions. This is one sampled candidate in a "
-        "Best-of-N run. Reason step by step in English, then provide the final answer."
-    )
-    user = "\n\n".join(
-        [
-            render_problem_block(example),
-            render_answer_format(example),
-            "Reason step by step in English.",
-            "End with exactly one final line in this format:\nFinal answer: <answer>",
-        ]
-    )
-    return PromptBundle(system=system, user=user)
 
 
 def render_problem_block(example: InferenceExample) -> str:
