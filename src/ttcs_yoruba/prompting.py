@@ -126,13 +126,13 @@ def render_exemplar_block(task: str) -> str:
     if not exemplars:
         return ""
 
-    blocks = ["Here are some examples:"]
+    blocks = ["Examples:"]
     for index, ex in enumerate(exemplars, start=1):
         parts = [f"Question:\n{ex.question}"]
         if ex.choices:
             parts.append("Choices:\n" + "\n".join(format_choices(ex.choices)))
         parts.append(f"Reasoning: {ex.reasoning}")
-        parts.append(f"Answer: {ex.answer}")
+        parts.append(f"Final answer: {ex.answer}")
         blocks.append("\n\n".join(parts))
 
     blocks.append("Now answer the following question.")
