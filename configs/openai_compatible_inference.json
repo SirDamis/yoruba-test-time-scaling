@@ -32,19 +32,78 @@
   ],
   "models": [
     {
-      "name": "qwen2.5-3b",
+      "name": "llama3.2-1b",
       "backend": "openai_compatible",
-      "model": "Qwen/Qwen2.5-3B-Instruct",
-      "size_label": "3B",
+      "model": "meta-llama/Llama-3.2-1B-Instruct",
+      "size_label": "1B",
+      "size_category": "tiny_small",
+      "model_type": "instruct",
       "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
       "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
       "cost_per_1k_tokens": 0.0
     },
     {
-      "name": "qwen2.5-7b",
+      "name": "llama3.2-3b",
       "backend": "openai_compatible",
-      "model": "Qwen/Qwen2.5-7B-Instruct",
-      "size_label": "7B",
+      "model": "meta-llama/Llama-3.2-3B-Instruct",
+      "size_label": "3B",
+      "size_category": "tiny_small",
+      "model_type": "instruct",
+      "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
+      "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
+      "cost_per_1k_tokens": 0.0
+    },
+    {
+      "name": "qwen3-4b",
+      "backend": "openai_compatible",
+      "model": "Qwen/Qwen3-4B",
+      "size_label": "4B",
+      "size_category": "tiny_small",
+      "model_type": "instruct",
+      "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
+      "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
+      "cost_per_1k_tokens": 0.0
+    },
+    {
+      "name": "gemma3-4b",
+      "backend": "openai_compatible",
+      "model": "google/gemma-3-4b-it",
+      "size_label": "4B",
+      "size_category": "tiny_small",
+      "model_type": "instruct",
+      "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
+      "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
+      "cost_per_1k_tokens": 0.0
+    },
+    {
+      "name": "afriquegemma-4b",
+      "backend": "openai_compatible",
+      "model": "McGill-NLP/AfriqueGemma-4B",
+      "size_label": "4B",
+      "size_category": "tiny_small",
+      "model_type": "base",
+      "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
+      "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
+      "cost_per_1k_tokens": 0.0
+    },
+    {
+      "name": "qwen3-8b",
+      "backend": "openai_compatible",
+      "model": "Qwen/Qwen3-8B",
+      "size_label": "8B",
+      "size_category": "medium",
+      "model_type": "instruct",
+      "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
+      "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
+      "cost_per_1k_tokens": 0.0
+    },
+    {
+      "name": "gemma3-12b",
+      "backend": "openai_compatible",
+      "model": "google/gemma-3-12b-it",
+      "size_label": "12B",
+      "size_category": "medium",
+      "model_type": "instruct",
       "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
       "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
       "cost_per_1k_tokens": 0.0
@@ -54,15 +113,85 @@
       "backend": "openai_compatible",
       "model": "meta-llama/Llama-3.1-8B-Instruct",
       "size_label": "8B",
+      "size_category": "medium",
+      "model_type": "instruct",
       "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
       "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
       "cost_per_1k_tokens": 0.0
     },
     {
-      "name": "gemma2-9b",
+      "name": "qwen3-14b",
       "backend": "openai_compatible",
-      "model": "google/gemma-2-9b-it",
-      "size_label": "9B",
+      "model": "Qwen/Qwen3-14B",
+      "size_label": "14B",
+      "size_category": "medium",
+      "model_type": "instruct",
+      "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
+      "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
+      "cost_per_1k_tokens": 0.0
+    },
+    {
+      "name": "afriqueqwen-14b",
+      "backend": "openai_compatible",
+      "model": "McGill-NLP/AfriqueQwen-14B",
+      "size_label": "14B",
+      "size_category": "medium",
+      "model_type": "base",
+      "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
+      "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
+      "cost_per_1k_tokens": 0.0
+    },
+    {
+      "name": "deepseek-r1-distill-qwen-14b",
+      "backend": "openai_compatible",
+      "model": "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B",
+      "size_label": "14B",
+      "size_category": "medium",
+      "model_type": "instruct",
+      "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
+      "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
+      "cost_per_1k_tokens": 0.0
+    },
+    {
+      "name": "qwen3-32b",
+      "backend": "openai_compatible",
+      "model": "Qwen/Qwen3-32B",
+      "size_label": "32B",
+      "size_category": "large",
+      "model_type": "instruct",
+      "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
+      "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
+      "cost_per_1k_tokens": 0.0
+    },
+    {
+      "name": "gemma3-27b",
+      "backend": "openai_compatible",
+      "model": "google/gemma-3-27b-it",
+      "size_label": "27B",
+      "size_category": "large",
+      "model_type": "instruct",
+      "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
+      "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
+      "cost_per_1k_tokens": 0.0
+    },
+    {
+      "name": "deepseek-r1-distill-qwen-32b",
+      "backend": "openai_compatible",
+      "model": "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
+      "size_label": "32B",
+      "size_category": "large",
+      "model_type": "instruct",
+      "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
+      "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
+      "cost_per_1k_tokens": 0.0
+    },
+    {
+      "name": "aya-expanse-32b",
+      "backend": "openai_compatible",
+      "model": "CohereForAI/aya-expanse-32b",
+      "size_label": "32B",
+      "size_category": "large",
+      "model_type": "instruct",
       "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
       "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
       "cost_per_1k_tokens": 0.0
@@ -86,35 +215,22 @@
       "max_tokens": 1024
     },
     {
+      "name": "translate_pivot",
+      "prompt_style": "translate_pivot",
+      "selection": "first",
+      "n": 1,
+      "temperature": 0.0,
+      "max_tokens": 1024
+    },
+    {
       "name": "best_of_n_cot",
-      "prompt_style": "best_of_n_cot",
+      "prompt_style": "english_cot",
       "selection": "majority_vote",
-      "n_values": [4, 6, 8, 10, 12, 16, 24, 32],
+      "n_values": [1, 4, 8, 16, 32, 64],
+      "nested_n": true,
       "temperature": 0.7,
-      "max_tokens": 1024
-    },
-    {
-      "name": "english_direct",
-      "prompt_style": "english_direct",
-      "selection": "first",
-      "n": 1,
-      "temperature": 0.0,
-      "max_tokens": 1024
-    },
-    {
-      "name": "yoruba_direct",
-      "prompt_style": "yoruba_direct",
-      "selection": "first",
-      "n": 1,
-      "temperature": 0.0,
-      "max_tokens": 1024
-    },
-    {
-      "name": "best_of_n_direct",
-      "prompt_style": "best_of_n_direct",
-      "selection": "majority_vote",
-      "n_values": [4, 6, 8, 10, 12, 16, 24, 32],
-      "temperature": 0.7,
+      "temperature_n1": 0.0,
+      "greedy_n1": true,
       "max_tokens": 1024
     }
   ]

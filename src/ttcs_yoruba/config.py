@@ -8,10 +8,20 @@ from .io_utils import read_json
 
 
 SUPPORTED_PROMPT_STYLES = {
-    "english_cot", "yoruba_cot", "best_of_n_cot",
-    "english_direct", "yoruba_direct", "best_of_n_direct",
+    "english_cot",
+    "yoruba_cot",
+    "translate_pivot",
+    "best_of_n_cot",
 }
 SUPPORTED_SELECTIONS = {"first", "majority_vote"}
+
+# Default reasoning-language tags for experiment logging / filtering.
+PROMPT_STYLE_REASONING_LANGUAGE = {
+    "yoruba_cot": "yo",
+    "english_cot": "en",
+    "best_of_n_cot": "en",
+    "translate_pivot": "en_pivot",
+}
 
 
 @dataclass(frozen=True)
@@ -76,6 +86,9 @@ class InferenceMethodConfig:
     temperature: float | None = None
     max_tokens: int | None = None
     reasoning_language: str = "unknown"
+    # When set, this method is part of a nested N-sweep: sample once at max N, slice for each k.
+    nested_group_id: str | None = None
+    nested_max_n: int | None = None
 
     @classmethod
     def from_dict(cls, row: dict[str, Any]) -> "InferenceMethodConfig":
@@ -99,8 +112,10 @@ class InferenceMethodConfig:
 
         reasoning_language = row.get("reasoning_language")
         if reasoning_language is None:
-            reasoning_language = "yo" if prompt_style in {"yoruba_cot", "yoruba_direct"} else "en"
+            reasoning_language = PROMPT_STYLE_REASONING_LANGUAGE.get(prompt_style, "en")
 
+        nested_group_id = row.get("nested_group_id")
+        nested_max_n = row.get("nested_max_n")
         return cls(
             name=str(row["name"]),
             prompt_style=prompt_style,
@@ -109,6 +124,8 @@ class InferenceMethodConfig:
             temperature=None if row.get("temperature") is None else float(row["temperature"]),
             max_tokens=None if row.get("max_tokens") is None else int(row["max_tokens"]),
             reasoning_language=str(reasoning_language),
+            nested_group_id=None if nested_group_id is None else str(nested_group_id),
+            nested_max_n=None if nested_max_n is None else int(nested_max_n),
         )
 
 
@@ -149,6 +166,16 @@ class InferenceRunConfig:
 
 
 def expand_method_configs(rows: list[dict[str, Any]]) -> list[InferenceMethodConfig]:
+    """Expand method rows, including TTC ``n_values`` sweeps.
+
+    Optional keys for E2 sweeps:
+    - ``temperature_n1``: temperature used when ``n == 1`` (default: keep ``temperature``)
+    - ``greedy_n1``: if true, force ``temperature=0`` and ``selection=first`` for ``n == 1``.
+      With ``nested_n``, N=1 is a **separate true-greedy decode** (not first-of-pool);
+      N>1 still share one stochastic pool of size max(N).
+    - ``nested_n`` / ``nested``: if true with multi ``n_values``, sample once at max N and
+      evaluate nested prefixes for N>1 (saves compute vs independent per-N runs)
+    """
     methods: list[InferenceMethodConfig] = []
     for row in rows:
         n_values = row.get("n_values")
@@ -158,11 +185,37 @@ def expand_method_configs(rows: list[dict[str, Any]]) -> list[InferenceMethodCon
             raise ValueError(f"Method {row.get('name')!r} has non-list n_values")
 
         base_name = str(row["name"])
-        for n_value in n_values:
+        multi = len(n_values) > 1
+        nested = bool(row.get("nested_n", row.get("nested", False))) and multi
+        int_ns = [int(v) for v in n_values]
+        nested_max_n = max(int_ns) if nested else None
+        nested_group_id = base_name if nested else None
+
+        for n_value in int_ns:
             concrete = dict(row)
             concrete.pop("n_values", None)
-            concrete["n"] = int(n_value)
-            concrete["name"] = f"{base_name}_n{int(n_value)}" if len(n_values) > 1 else base_name
+            concrete.pop("temperature_n1", None)
+            concrete.pop("greedy_n1", None)
+            concrete.pop("nested_n", None)
+            concrete.pop("nested", None)
+            n = int(n_value)
+            concrete["n"] = n
+            concrete["name"] = f"{base_name}_n{n}" if multi else base_name
+            if nested_group_id is not None:
+                concrete["nested_group_id"] = nested_group_id
+                concrete["nested_max_n"] = nested_max_n
+
+            if n == 1:
+                if "temperature_n1" in row:
+                    concrete["temperature"] = row["temperature_n1"]
+                if bool(row.get("greedy_n1", multi)):
+                    # True greedy N=1 baseline (temp 0, selection=first). With nested_n the
+                    # pipeline generates this decode separately from the stochastic pool.
+                    concrete["temperature"] = (
+                        float(row["temperature_n1"]) if "temperature_n1" in row else 0.0
+                    )
+                    concrete["selection"] = "first"
+
             methods.append(InferenceMethodConfig.from_dict(concrete))
     return methods
 

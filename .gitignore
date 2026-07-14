@@ -24,3 +24,8 @@ results/
 *.log
 .DS_Store
 Thumbs.db
+
+# Local notes / docs and scratch command file (not tracked)
+*.md
+!README.md
+commands

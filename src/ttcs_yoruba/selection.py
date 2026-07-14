@@ -1,8 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 
 from .extraction import normalize_for_match
+
+
+SUPPORTED_SELECTIONS = {"first", "majority_vote"}
+# Alias kept for callers that used the old local-only constant.
+SUPPORTED_LOCAL_SELECTIONS = SUPPORTED_SELECTIONS
 
 
 @dataclass(frozen=True)
@@ -10,9 +16,19 @@ class SelectionResult:
     selected_sample_index: int
     selected_answer: str
     vote_counts: dict[str, int]
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
-def select_candidate(candidates: list[dict[str, object]], strategy: str) -> SelectionResult:
+def select_candidate(
+    candidates: list[dict[str, object]],
+    strategy: str,
+) -> SelectionResult:
+    """Select one candidate from a sampled set.
+
+    Supported strategies: ``first``, ``majority_vote``.
+
+    LLM-as-judge / external verifiers are deferred (not implemented).
+    """
     if not candidates:
         return SelectionResult(selected_sample_index=-1, selected_answer="", vote_counts={})
 
@@ -24,9 +40,17 @@ def select_candidate(candidates: list[dict[str, object]], strategy: str) -> Sele
             vote_counts={str(first.get("extracted_answer", "")): 1},
         )
 
-    if strategy != "majority_vote":
-        raise ValueError(f"Unsupported selection strategy: {strategy!r}")
+    if strategy == "majority_vote":
+        return _majority_vote(candidates)
 
+    raise ValueError(
+        f"Unsupported selection strategy: {strategy!r}. "
+        f"Expected one of {sorted(SUPPORTED_SELECTIONS)}. "
+        f"(LLM-as-judge verifier is deferred.)"
+    )
+
+
+def _majority_vote(candidates: list[dict[str, object]]) -> SelectionResult:
     vote_counts: dict[str, int] = {}
     first_seen: dict[str, int] = {}
     display_answers: dict[str, str] = {}

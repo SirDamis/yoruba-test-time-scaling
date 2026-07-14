@@ -38,11 +38,10 @@ EXAMPLES: list[InferenceExample] = [
 ]
 
 STYLES = [
-    ("english_cot", "Chain-of-Thought (English)"),
-    ("yoruba_cot", "Chain-of-Thought (Yoruba)"),
-    ("english_direct", "Direct (English)"),
-    ("yoruba_direct", "Direct (Yoruba)"),
-    ("best_of_n_direct", "Best-of-N Direct"),
+    ("english_cot", "E1: Chain-of-Thought (English)"),
+    ("yoruba_cot", "E1: Chain-of-Thought (Yoruba)"),
+    ("translate_pivot", "E1: Translate Pivot (Yo→En reason)"),
+    ("best_of_n_cot", "Best-of-N CoT (English)"),
 ]
 
 OUTPUT_DIR = Path("runs") / "sample_prompts"

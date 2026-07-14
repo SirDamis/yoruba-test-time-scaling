@@ -21,13 +21,24 @@ def parse_csv_set(value: str | None) -> set[str] | None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run Yoruba TTC inference from a cloud model endpoint.")
-    parser.add_argument("--config", default="configs/cloud_inference.json", help="Inference config JSON path.")
+    parser.add_argument("--config", default="configs/inference.json", help="Inference config JSON path.")
     parser.add_argument("--run-id", default=None, help="Optional run_id override.")
     parser.add_argument("--output-dir", default=None, help="Optional output directory override.")
     parser.add_argument("--datasets", default=None, help="Comma-separated dataset names to run.")
     parser.add_argument("--models", default=None, help="Comma-separated model names to run.")
     parser.add_argument("--methods", default=None, help="Comma-separated method names to run.")
     parser.add_argument("--limit", type=int, default=None, help="Optional per-dataset example limit for cloud smoke runs.")
+    parser.add_argument(
+        "--resume",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Resume from completed_units.jsonl and append (default: true). Use --no-resume to rewrite outputs.",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Delete prior candidates/selections/checkpoint for this run_id and start clean.",
+    )
     args = parser.parse_args()
 
     config = load_inference_run_config(args.config)
@@ -42,6 +53,8 @@ def main() -> None:
         model_names=parse_csv_set(args.models),
         method_names=parse_csv_set(args.methods),
         limit=args.limit,
+        resume=args.resume,
+        overwrite=args.overwrite,
     )
     print(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True))
 
