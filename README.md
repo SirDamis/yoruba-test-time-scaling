@@ -6,6 +6,8 @@ Experiment pipeline for **When Is More Thinking Enough? Evaluation of Test-Time 
 
 Evaluation is **Yoruba-only**. English appears only as an inference intervention (English CoT, translate-to-English pivot). There are no standalone English benchmark runs.
 
+**Local vLLM (install → serve → run → evaluate):** see **[README_VLLM.md](README_VLLM.md)**.
+
 ## Research questions
 
 | RQ | Question |
