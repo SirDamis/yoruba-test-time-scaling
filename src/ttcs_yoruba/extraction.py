@@ -13,6 +13,19 @@ FINAL_ANSWER_RE = re.compile(
 _NUM_EPS = 1e-6
 
 
+def strip_thinking_blocks(response: str) -> str:
+    """Remove Qwen-style ``<think>...</think>`` (and unclosed) blocks before extraction.
+
+    Thinking traces are often English even when the user asked for Yoruba CoT;
+    final-answer scoring should use the visible answer portion when possible.
+    """
+    text = response or ""
+    text = re.sub(r"<think>[\s\S]*?</think>", "\n", text, flags=re.IGNORECASE)
+    # Unclosed think block (model still generating or never closed)
+    text = re.sub(r"<think>[\s\S]*$", "\n", text, flags=re.IGNORECASE)
+    return text
+
+
 def extract_answer(response: str, answer_type: str, choices: list[str] | None = None) -> str:
     candidate = find_final_answer_text(response)
     if answer_type == "choice":
@@ -23,9 +36,18 @@ def extract_answer(response: str, answer_type: str, choices: list[str] | None = 
 
 
 def find_final_answer_text(response: str) -> str:
+    # Prefer content outside thinking traces (Qwen3 etc.).
+    cleaned = strip_thinking_blocks(response)
+    matches = FINAL_ANSWER_RE.findall(cleaned)
+    if matches:
+        return clean_answer_text(matches[-1])
+    # Fall back to full response (some models put Final answer inside think)
     matches = FINAL_ANSWER_RE.findall(response or "")
     if matches:
         return clean_answer_text(matches[-1])
+    lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
+    if lines:
+        return clean_answer_text(lines[-1])
     lines = [line.strip() for line in (response or "").splitlines() if line.strip()]
     return clean_answer_text(lines[-1]) if lines else ""
 

@@ -345,7 +345,8 @@ def render_english_cot_prompt(example: InferenceExample) -> PromptBundle:
 def render_yoruba_cot_prompt(example: InferenceExample) -> PromptBundle:
     system = (
         "O n yanju awon ibeere lati idanwo Yorùbá. "
-        "Ronu daradara nipa ibeere naa ni èdè Yorùbá. "
+        "Ronu daradara nipa ibeere naa ni èdè Yorùbá nikan. "
+        "Má ṣe lo èdè Gẹ̀ẹ́sì fún ìrònú (reasoning). "
         "Fun idahun ikẹhin ti o tọ."
     )
     exemplar_block = render_exemplar_block(example.task, reasoning_mode="yo")
@@ -353,7 +354,11 @@ def render_yoruba_cot_prompt(example: InferenceExample) -> PromptBundle:
         [
             f"{exemplar_block}{render_problem_block(example)}",
             render_answer_format(example),
-            "Ronu nipa ibeere naa ni igbese-nipasẹ-igbesẹ ni Yorùbá.",
+            (
+                "IMPORTANT: Write your entire step-by-step reasoning in Yorùbá only. "
+                "Do not reason in English. Do not translate the problem into English first."
+            ),
+            "Ronu nipa ibeere naa ni igbese-nipasẹ-igbesẹ ni Yorùbá nikan.",
             "Ni ipari, kọ: Final answer: <answer>",
         ]
     )

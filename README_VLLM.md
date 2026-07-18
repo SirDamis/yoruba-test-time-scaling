@@ -410,8 +410,10 @@ uv run python scripts/compare_e4.py \
 | Accidental HF path | Use `*_vllm.json` configs, not `e1_reasoning_language.json`. |
 | Mixed engines in one folder | Always use a **new `--run-id`** for vLLM vs Transformers. |
 | `flash-attn` OOM during install | **Do not install it** for this guide. |
+| `yoruba_cot` still reasons in English (Qwen3 `<think>` blocks) | **Not a wrong prompt** — Qwen3 default “thinking” mode is English-heavy. Configs set `chat_template_kwargs.enable_thinking=false` for Qwen. Restart vLLM + re-run with a **new run-id**. Also a valid **paper finding** (instruction non-compliance / language switch). |
 
 ---
+
 
 ## 14. Quick reference
 

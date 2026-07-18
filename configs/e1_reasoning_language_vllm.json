@@ -42,7 +42,12 @@
       "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
       "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
       "backend_kwargs": {
-        "send_seed": true
+        "send_seed": true,
+        "extra_body": {
+          "chat_template_kwargs": {
+            "enable_thinking": false
+          }
+        }
       }
     },
     {
