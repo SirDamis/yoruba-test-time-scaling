@@ -6,5 +6,14 @@ sentencepiece>=0.2
 protobuf>=4.25
 safetensors>=0.4
 matplotlib>=3.8
-# Optional (L4/SM>=8 Transformers path): pip install flash-attn --no-build-isolation
-# vLLM is installed separately for local serving: pip install vllm
+
+# --- Local vLLM serving (install separately; not pinned to torch/CUDA matrix) ---
+#   uv pip install vllm
+#
+# Do NOT install flash-attn for the vLLM experiment path.
+# vLLM ships its own efficient attention kernels (FlashAttention-class + PagedAttention).
+# Compiling flash-attn often needs >>16–30GB RAM and is unnecessary for
+# configs/*_vllm.json.
+#
+# Transformers-only runs (configs/e1_reasoning_language.json etc.) use
+# attn_implementation=auto → SDPA by default; FA2 is optional and not required.

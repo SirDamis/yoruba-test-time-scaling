@@ -19,7 +19,7 @@ HOST="${HOST:-0.0.0.0}"
 GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.90}"
 
 echo "Serving ${MODEL} on ${HOST}:${PORT} (max-model-len=${MAX_MODEL_LEN})"
-echo "FlashAttention: enabled automatically on L4/Ada (SM>=8) when available in vLLM."
+echo "Attention: vLLM built-in efficient kernels (no flash-attn package needed)."
 echo "Client env:"
 echo "  export OPENAI_COMPATIBLE_BASE_URL=\"http://localhost:${PORT}/v1\""
 echo "  export OPENAI_COMPATIBLE_API_KEY=\"EMPTY\""

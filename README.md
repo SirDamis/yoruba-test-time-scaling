@@ -101,7 +101,16 @@ uv run python scripts/run_inference.py \
 
 **Local vLLM (same E1 protocol, faster serving; no paid API):** start the server in one terminal, then run E1 against it.
 
-E1/E2 configs use **`max_tokens: 512`** (good for AfriMGSM). vLLM configs set **`max_concurrent: 8`** so the client issues multiple in-flight requests and vLLM continuous-batches them. Transformers configs stay at concurrency 1 (HF `generate` is not thread-safe) and use **`attn_implementation: auto`** (FlashAttention-2 on L4/SM≥8 when `flash-attn` is installed, else SDPA; T4 → SDPA).
+E1/E2 configs use **`max_tokens: 512`** (good for AfriMGSM). vLLM configs set **`max_concurrent: 8`** so the client issues multiple in-flight requests and vLLM continuous-batches them. Transformers configs stay at concurrency 1 (HF `generate` is not thread-safe) and use **`attn_implementation: auto`** (defaults to SDPA; no `flash-attn` package required).
+
+**Do not install `flash-attn` for the vLLM path.** vLLM includes its own efficient attention (FlashAttention-class kernels + PagedAttention). Compiling `flash-attn` is RAM-heavy and unused by `configs/*_vllm.json`.
+
+**L4 install (after CUDA torch + `requirements.txt`):**
+
+```bash
+uv pip install vllm
+# no flash-attn
+```
 
 ```bash
 # Terminal A — L4-friendly helper (or plain vllm serve)
@@ -121,8 +130,6 @@ uv run python scripts/run_inference.py \
   --max-concurrent 8 \
   --overwrite
 ```
-
-Optional: `pip install flash-attn` on L4 for FA2 with the Transformers backend. vLLM enables efficient attention kernels itself on supported GPUs.
 
 Serve Gemma or Llama the same way (one model per vLLM process), then pass the matching `--models` name.
 
