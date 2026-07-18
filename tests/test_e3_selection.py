@@ -34,7 +34,7 @@ def test_majority_vote_picks_most_common() -> None:
         {"sample_index": 2, "extracted_answer": "11"},
         {"sample_index": 3, "extracted_answer": "12"},
     ]
-    result = select_candidate(candidates, "majority_vote")
+    result = select_candidate(candidates, "majority_vote", answer_type="number")
     assert result.selected_answer == "11"
     assert result.selected_sample_index == 1
 

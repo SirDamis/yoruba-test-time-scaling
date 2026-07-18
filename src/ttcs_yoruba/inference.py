@@ -813,7 +813,11 @@ def build_selection_row(
     example: InferenceExample,
     candidate_rows: list[dict[str, object]],
 ) -> dict[str, object]:
-    selected = select_candidate(candidate_rows, method.selection)
+    selected = select_candidate(
+        candidate_rows,
+        method.selection,
+        answer_type=example.answer_type,
+    )
     row: dict[str, Any] = {
         "run_id": config.run_id,
         "dataset": dataset.name,

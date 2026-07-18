@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 import string
 
@@ -7,6 +8,9 @@ import string
 FINAL_ANSWER_RE = re.compile(
     r"(?im)^\s*(?:final\s+answer|answer|idahun\s+ikeyin)\s*[:\-]\s*(.+?)\s*$"
 )
+
+# Absolute tolerance for GSM-style integer/simple-decimal equality.
+_NUM_EPS = 1e-6
 
 
 def extract_answer(response: str, answer_type: str, choices: list[str] | None = None) -> str:
@@ -51,6 +55,35 @@ def extract_number_answer(candidate: str) -> str:
     return clean_answer_text(candidate)
 
 
+def parse_number(value: str) -> float | None:
+    """Extract and parse a number; return None if not parseable."""
+    text = extract_number_answer(value)
+    if not text:
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+def numbers_equal(a: str, b: str, *, eps: float = _NUM_EPS) -> bool:
+    """True when *a* and *b* are the same numeric value (e.g. 105 vs 105.0)."""
+    na, nb = parse_number(a), parse_number(b)
+    if na is None or nb is None:
+        return extract_number_answer(a) == extract_number_answer(b)
+    return math.isclose(na, nb, rel_tol=0.0, abs_tol=eps)
+
+
+def numeric_match_key(value: str, *, eps: float = _NUM_EPS) -> str:
+    """Stable key so 11 / 11.0 / 11.00 pool together in majority vote."""
+    n = parse_number(value)
+    if n is None:
+        return normalize_for_match(value)
+    if math.isclose(n, round(n), abs_tol=eps):
+        return f"num:{int(round(n))}"
+    return f"num:{round(n, 6)}"
+
+
 def clean_answer_text(value: str) -> str:
     return (value or "").strip().strip("`*_ \t\r\n")
 
@@ -71,5 +104,5 @@ def is_exact_match(prediction: str, gold_answer: str, answer_type: str) -> bool:
     if not gold_answer:
         return False
     if answer_type == "number":
-        return extract_number_answer(prediction) == extract_number_answer(gold_answer)
+        return numbers_equal(prediction, gold_answer)
     return normalize_for_match(prediction) == normalize_for_match(gold_answer)

@@ -100,8 +100,11 @@ def reselect_groups(
 
     for key in sorted(groups):
         candidates = groups[key]
+        head = candidates[0] if candidates else {}
+        meta = head.get("metadata") or {}
+        answer_type = str(meta.get("answer_type", head.get("answer_type", "text")))
         for strategy in strategies:
-            result = select_candidate(candidates, strategy)
+            result = select_candidate(candidates, strategy, answer_type=answer_type)
             record = build_selection_record(
                 candidates=candidates,
                 strategy=strategy,
