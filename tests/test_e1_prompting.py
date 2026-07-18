@@ -35,6 +35,26 @@ def test_e1_config_has_three_strategies() -> None:
         "translate_pivot",
     }
     assert {m.reasoning_language for m in cfg.methods} == {"yo", "en", "en_pivot"}
+    assert all(m.backend == "transformers" for m in cfg.models)
+
+
+def test_e1_vllm_config_matches_experiment_with_openai_compatible() -> None:
+    """E1-vLLM is the same experiment matrix, served via local OpenAI-compatible API."""
+    hf = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language.json")
+    vllm = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language_vllm.json")
+    assert {m.name for m in vllm.models} == {m.name for m in hf.models}
+    assert {m.model for m in vllm.models} == {m.model for m in hf.models}
+    assert all(m.backend == "openai_compatible" for m in vllm.models)
+    assert all(m.base_url_env == "OPENAI_COMPATIBLE_BASE_URL" for m in vllm.models)
+    assert all(m.api_key_env == "OPENAI_COMPATIBLE_API_KEY" for m in vllm.models)
+    assert {m.prompt_style for m in vllm.methods} == {
+        "yoruba_cot",
+        "english_cot",
+        "translate_pivot",
+    }
+    assert {m.reasoning_language for m in vllm.methods} == {"yo", "en", "en_pivot"}
+    assert all(m.n == 1 and m.selection == "first" for m in vllm.methods)
+    assert vllm.run_id == "e1_reasoning_language_vllm"
 
 
 def test_translate_pivot_instructs_translation() -> None:
@@ -67,6 +87,7 @@ def test_extract_answer_from_translate_pivot_response() -> None:
 
 if __name__ == "__main__":
     test_e1_config_has_three_strategies()
+    test_e1_vllm_config_matches_experiment_with_openai_compatible()
     test_translate_pivot_instructs_translation()
     test_yoruba_cot_uses_yoruba_exemplar_reasoning()
     test_english_cot_uses_english_exemplar_reasoning()

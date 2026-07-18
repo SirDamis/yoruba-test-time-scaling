@@ -139,6 +139,9 @@ class InferenceRunConfig:
     seed: int | None = None
     default_request_timeout_s: float = 120.0
     continue_on_error: bool = False
+    # Concurrent in-flight generations (useful for local vLLM). HF Transformers
+    # is clamped to 1 in the pipeline (model generate is not thread-safe).
+    max_concurrent: int = 1
 
     @classmethod
     def from_dict(cls, row: dict[str, Any]) -> "InferenceRunConfig":
@@ -153,6 +156,9 @@ class InferenceRunConfig:
             raise ValueError("Inference config must define at least one method")
 
         seed = row.get("seed")
+        max_concurrent = int(row.get("max_concurrent", 1))
+        if max_concurrent < 1:
+            raise ValueError(f"max_concurrent must be >= 1, got {max_concurrent}")
         return cls(
             run_id=str(row.get("run_id", "yoruba_ttc_cloud")),
             output_dir=Path(row.get("output_dir", "runs")),
@@ -162,6 +168,7 @@ class InferenceRunConfig:
             seed=None if seed is None else int(seed),
             default_request_timeout_s=float(row.get("default_request_timeout_s", 120.0)),
             continue_on_error=bool(row.get("continue_on_error", False)),
+            max_concurrent=max_concurrent,
         )
 
 

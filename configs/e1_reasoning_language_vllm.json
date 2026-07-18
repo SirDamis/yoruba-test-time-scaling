@@ -1,8 +1,8 @@
 {
-  "run_id": "e1_reasoning_language",
+  "run_id": "e1_reasoning_language_vllm",
   "output_dir": "runs",
   "seed": 20260708,
-  "default_request_timeout_s": 180,
+  "default_request_timeout_s": 300,
   "continue_on_error": false,
   "datasets": [
     {
@@ -33,47 +33,44 @@
   "models": [
     {
       "name": "qwen3-4b",
-      "backend": "transformers",
+      "backend": "openai_compatible",
       "model": "Qwen/Qwen3-4B",
       "size_label": "4B",
       "size_category": "tiny_small",
       "model_type": "instruct",
       "cost_per_1k_tokens": 0.0,
+      "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
+      "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
       "backend_kwargs": {
-        "device_map": "auto",
-        "torch_dtype": "auto",
-        "token_env": "HF_TOKEN",
-        "attn_implementation": "auto"
+        "send_seed": true
       }
     },
     {
       "name": "gemma3-4b",
-      "backend": "transformers",
+      "backend": "openai_compatible",
       "model": "google/gemma-3-4b-it",
       "size_label": "4B",
       "size_category": "tiny_small",
       "model_type": "instruct",
       "cost_per_1k_tokens": 0.0,
+      "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
+      "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
       "backend_kwargs": {
-        "device_map": "auto",
-        "torch_dtype": "auto",
-        "token_env": "HF_TOKEN",
-        "attn_implementation": "auto"
+        "send_seed": true
       }
     },
     {
       "name": "llama3.2-3b",
-      "backend": "transformers",
+      "backend": "openai_compatible",
       "model": "meta-llama/Llama-3.2-3B-Instruct",
       "size_label": "3B",
       "size_category": "tiny_small",
       "model_type": "instruct",
       "cost_per_1k_tokens": 0.0,
+      "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
+      "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
       "backend_kwargs": {
-        "device_map": "auto",
-        "torch_dtype": "auto",
-        "token_env": "HF_TOKEN",
-        "attn_implementation": "auto"
+        "send_seed": true
       }
     }
   ],
@@ -106,5 +103,5 @@
       "reasoning_language": "en_pivot"
     }
   ],
-  "max_concurrent": 1
+  "max_concurrent": 8
 }

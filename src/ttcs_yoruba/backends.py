@@ -17,6 +17,32 @@ class BackendError(RuntimeError):
     """Raised when a model backend cannot complete a generation request."""
 
 
+def resolve_attn_implementation(requested: Any, torch_mod: Any) -> str | None:
+    """Pick an attention backend for Hugging Face Transformers.
+
+    - ``auto`` / omitted: FlashAttention-2 on CUDA SM>=8.0 when ``flash_attn`` is
+      installed; otherwise PyTorch SDPA (including Turing/T4 and CPU).
+    - Explicit values are returned as-is (``flash_attention_2``, ``sdpa``, ``eager``).
+    """
+    if requested in (None, "", "auto"):
+        if not getattr(torch_mod, "cuda", None) or not torch_mod.cuda.is_available():
+            return "sdpa"
+        try:
+            major, _minor = torch_mod.cuda.get_device_capability(0)
+        except Exception:
+            return "sdpa"
+        if major >= 8:
+            try:
+                import flash_attn  # noqa: F401
+
+                return "flash_attention_2"
+            except ImportError:
+                return "sdpa"
+        # Turing (T4, SM 7.5): FA2 unsupported; SDPA mem-efficient is fine.
+        return "sdpa"
+    return str(requested)
+
+
 class InferenceBackend:
     def generate(
         self,
@@ -62,12 +88,29 @@ class TransformersChatBackend(InferenceBackend):
         model_kwargs = dict(shared_kwargs)
         model_kwargs["device_map"] = backend_kwargs.get("device_map", "auto")
         model_kwargs["torch_dtype"] = self._resolve_torch_dtype(backend_kwargs.get("torch_dtype", "auto"))
-        for key in ("attn_implementation", "low_cpu_mem_usage", "load_in_4bit", "load_in_8bit"):
+        for key in ("low_cpu_mem_usage", "load_in_4bit", "load_in_8bit"):
             if key in backend_kwargs:
                 model_kwargs[key] = backend_kwargs[key]
 
+        requested_attn = backend_kwargs.get("attn_implementation", "auto")
+        attn_impl = resolve_attn_implementation(requested_attn, torch)
+        self.attn_implementation = attn_impl
+        if attn_impl is not None:
+            model_kwargs["attn_implementation"] = attn_impl
+
         self.tokenizer = AutoTokenizer.from_pretrained(self.config.model, **tokenizer_kwargs)
-        self.model = AutoModelForCausalLM.from_pretrained(self.config.model, **model_kwargs)
+        try:
+            self.model = AutoModelForCausalLM.from_pretrained(self.config.model, **model_kwargs)
+        except Exception as exc:
+            # FA2 often fails if flash-attn is missing/mismatched; fall back to SDPA.
+            if model_kwargs.get("attn_implementation") == "flash_attention_2":
+                model_kwargs["attn_implementation"] = "sdpa"
+                self.attn_implementation = "sdpa"
+                self.model = AutoModelForCausalLM.from_pretrained(self.config.model, **model_kwargs)
+            else:
+                raise BackendError(
+                    f"Failed to load model {self.config.model!r}: {exc}"
+                ) from exc
         self.model.eval()
 
         if self.tokenizer.pad_token_id is None and self.tokenizer.eos_token_id is not None:
@@ -107,6 +150,7 @@ class TransformersChatBackend(InferenceBackend):
                 "completion_tokens": completion_tokens,
                 "model_id": self.config.model,
                 "backend": "transformers",
+                "attn_implementation": self.attn_implementation,
             },
         )
 
@@ -144,7 +188,7 @@ class TransformersChatBackend(InferenceBackend):
 
     def _generation_kwargs(self, temperature: float | None, max_tokens: int | None) -> dict[str, Any]:
         kwargs = {
-            "max_new_tokens": max_tokens or int(self.config.backend_kwargs.get("max_new_tokens", 1024)),
+            "max_new_tokens": max_tokens or int(self.config.backend_kwargs.get("max_new_tokens", 512)),
             "pad_token_id": self.tokenizer.pad_token_id or self.tokenizer.eos_token_id,
         }
         if self.tokenizer.eos_token_id is not None:

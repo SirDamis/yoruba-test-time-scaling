@@ -68,7 +68,8 @@ Run order: **E1 → E2 → E3 → E4**. After E1, set E2 `prompt_style` to the w
 
 | Field | Value |
 |-------|--------|
-| **Config** | `configs/e1_reasoning_language.json` |
+| **Config (HF Transformers)** | `configs/e1_reasoning_language.json` |
+| **Config (local vLLM)** | `configs/e1_reasoning_language_vllm.json` |
 | **Models** | `qwen3-4b`, `gemma3-4b`, `llama3.2-3b` |
 | **Methods** | `yoruba_cot`, `english_cot`, `translate_pivot` (greedy `N=1`) |
 
@@ -79,7 +80,7 @@ Run order: **E1 → E2 → E3 → E4**. After E1, set E2 `prompt_style` to the w
 | **Translate Pivot** | Translate question → English reasoning → Yoruba answer |
 
 ```bash
-# Full E1
+# Full E1 (in-process Transformers)
 uv run python scripts/run_inference.py --config configs/e1_reasoning_language.json
 
 # One dataset × one model (all 3 strategies), fresh start
@@ -98,14 +99,43 @@ uv run python scripts/run_inference.py \
   --limit 5
 ```
 
+**Local vLLM (same E1 protocol, faster serving; no paid API):** start the server in one terminal, then run E1 against it.
+
+E1/E2 configs use **`max_tokens: 512`** (good for AfriMGSM). vLLM configs set **`max_concurrent: 8`** so the client issues multiple in-flight requests and vLLM continuous-batches them. Transformers configs stay at concurrency 1 (HF `generate` is not thread-safe) and use **`attn_implementation: auto`** (FlashAttention-2 on L4/SM≥8 when `flash-attn` is installed, else SDPA; T4 → SDPA).
+
+```bash
+# Terminal A — L4-friendly helper (or plain vllm serve)
+./scripts/serve_vllm.sh Qwen/Qwen3-4B
+# equivalent:
+# vllm serve Qwen/Qwen3-4B --host 0.0.0.0 --port 8000 --dtype auto --max-model-len 4096
+
+# Terminal B — point the client at local vLLM
+export OPENAI_COMPATIBLE_BASE_URL="http://localhost:8000/v1"
+export OPENAI_COMPATIBLE_API_KEY="EMPTY"
+
+uv run python scripts/run_inference.py \
+  --config configs/e1_reasoning_language_vllm.json \
+  --run-id e1_afrimgsm_qwen3-4b_vllm \
+  --datasets afrimgsm \
+  --models qwen3-4b \
+  --max-concurrent 8 \
+  --overwrite
+```
+
+Optional: `pip install flash-attn` on L4 for FA2 with the Transformers backend. vLLM enables efficient attention kernels itself on supported GPUs.
+
+Serve Gemma or Llama the same way (one model per vLLM process), then pass the matching `--models` name.
+
 ### E2 — TTC scaling
 
 **Question:** How does test-time compute scale on Yoruba tasks?
 
 | Field | Value |
 |-------|--------|
-| **Primary config** | `configs/e2_ttc_scaling.json` (Qwen 4B / 14B / 32B) |
-| **Optional families** | `configs/e2_ttc_scaling_optional.json` (Gemma, Llama) |
+| **Primary config (HF)** | `configs/e2_ttc_scaling.json` (Qwen 4B / 14B / 32B) |
+| **Primary config (vLLM)** | `configs/e2_ttc_scaling_vllm.json` |
+| **Optional families (HF)** | `configs/e2_ttc_scaling_optional.json` (Gemma, Llama) |
+| **Optional families (vLLM)** | `configs/e2_ttc_scaling_optional_vllm.json` |
 | **Method** | `english_cot_ttc` (expanded to `english_cot_ttc_n1` … `_n64`) |
 | **N** | 1, 4, 8, 16, 32, 64 with `nested_n: true` |
 | **N=1** | True greedy (`greedy_n1`, temp 0, `selection=first`) |
@@ -114,7 +144,7 @@ uv run python scripts/run_inference.py \
 After E1, set `methods[0].prompt_style` in the E2 config to the winner (`english_cot`, `yoruba_cot`, or `translate_pivot`).
 
 ```bash
-# Full E2 (Qwen ladder)
+# Full E2 (Qwen ladder, Transformers)
 uv run python scripts/run_inference.py --config configs/e2_ttc_scaling.json
 
 # Smoke test (filter to one expanded method name)
@@ -125,8 +155,19 @@ uv run python scripts/run_inference.py \
   --methods english_cot_ttc_n4 \
   --limit 5
 
+# E2 via local vLLM (serve matching model first)
+export OPENAI_COMPATIBLE_BASE_URL="http://localhost:8000/v1"
+export OPENAI_COMPATIBLE_API_KEY="EMPTY"
+uv run python scripts/run_inference.py \
+  --config configs/e2_ttc_scaling_vllm.json \
+  --datasets afrimgsm \
+  --models qwen3-4b \
+  --overwrite
+
 # Aggregate accuracy / tokens / latency + plots
 uv run python scripts/aggregate_ttc_metrics.py --runs-dir runs
+# With a vLLM run-id:
+# uv run python scripts/aggregate_ttc_metrics.py --runs-dir runs --run-id e2_ttc_scaling_vllm
 ```
 
 Outputs under `results/ttc_scaling/`: metrics JSON/CSV, `accuracy_vs_n.png`, `accuracy_vs_tokens.png`.
@@ -145,9 +186,17 @@ Reuses E2 traces (no new generations). For each *N*:
 - High `pass@N`, low select accuracy → selection bottleneck  
 - Low `pass@N` → generation bottleneck  
 
+No separate inference config — offline on whatever E2 `run_id` you produced (HF or vLLM).
+
 ```bash
+# HF E2 traces
 uv run python scripts/reselect_candidates.py \
   --run-id e2_ttc_scaling \
+  --strategies first,majority_vote
+
+# Local-vLLM E2 traces
+uv run python scripts/reselect_candidates.py \
+  --run-id e2_ttc_scaling_vllm \
   --strategies first,majority_vote
 ```
 
@@ -159,17 +208,23 @@ Writes `results/e3_reselection/<run_id>/` (`selections_*.jsonl`, `e3_report.json
 
 | Field | Value |
 |-------|--------|
-| **Config** | `configs/e4_comparison.json` |
+| **Config (HF E2 traces)** | `configs/e4_comparison.json` |
+| **Config (vLLM E2 traces)** | `configs/e4_comparison_vllm.json` |
 | **Small** | `qwen3-4b` over the TTC *N* sweep |
 | **Large** | `qwen3-32b` at `N=1` |
+
+E4 only compares saved metrics/runs (no model load). Use the vLLM comparison config’s notes and the matching E2 `run_id`.
 
 ```bash
 # From aggregated E2 metrics
 uv run python scripts/compare_e4.py \
   --metrics-json results/ttc_scaling/metrics.json
 
-# Or from run artifacts
+# Or from run artifacts (HF)
 uv run python scripts/compare_e4.py --runs-dir runs --run-id e2_ttc_scaling
+
+# Or from local-vLLM E2 artifacts
+uv run python scripts/compare_e4.py --runs-dir runs --run-id e2_ttc_scaling_vllm
 ```
 
 Writes `results/e4_comparison/` (JSON, CSV table, accuracy vs *N* / tokens / latency plots).
@@ -192,7 +247,9 @@ Primary entrypoint: `scripts/run_inference.py`.
 Experiment configs (`e1_*`, `e2_*`) are preferred. Generic kitchen-sink configs also exist:
 
 - `configs/inference.json` — Hugging Face Transformers backend  
-- `configs/openai_compatible_inference.json` — OpenAI-compatible / vLLM endpoint  
+- `configs/*_vllm.json` — same E1/E2 experiment protocols over local vLLM (`openai_compatible`)  
+- `configs/e4_comparison_vllm.json` — E4 filters for vLLM E2 `run_id`s (offline compare only)  
+- `configs/openai_compatible_inference.json` — generic multi-model kitchen sink (not a full experiment protocol)  
 
 ```bash
 # Common flags

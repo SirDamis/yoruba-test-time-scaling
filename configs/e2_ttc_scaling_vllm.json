@@ -1,8 +1,8 @@
 {
-  "run_id": "e2_ttc_scaling",
+  "run_id": "e2_ttc_scaling_vllm",
   "output_dir": "runs",
   "seed": 20260708,
-  "default_request_timeout_s": 180,
+  "default_request_timeout_s": 300,
   "continue_on_error": false,
   "datasets": [
     {
@@ -33,47 +33,44 @@
   "models": [
     {
       "name": "qwen3-4b",
-      "backend": "transformers",
+      "backend": "openai_compatible",
       "model": "Qwen/Qwen3-4B",
       "size_label": "4B",
       "size_category": "tiny_small",
       "model_type": "instruct",
       "cost_per_1k_tokens": 0.0,
+      "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
+      "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
       "backend_kwargs": {
-        "device_map": "auto",
-        "torch_dtype": "auto",
-        "token_env": "HF_TOKEN",
-        "attn_implementation": "auto"
+        "send_seed": true
       }
     },
     {
       "name": "qwen3-14b",
-      "backend": "transformers",
+      "backend": "openai_compatible",
       "model": "Qwen/Qwen3-14B",
       "size_label": "14B",
       "size_category": "medium",
       "model_type": "instruct",
       "cost_per_1k_tokens": 0.0,
+      "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
+      "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
       "backend_kwargs": {
-        "device_map": "auto",
-        "torch_dtype": "auto",
-        "token_env": "HF_TOKEN",
-        "attn_implementation": "auto"
+        "send_seed": true
       }
     },
     {
       "name": "qwen3-32b",
-      "backend": "transformers",
+      "backend": "openai_compatible",
       "model": "Qwen/Qwen3-32B",
       "size_label": "32B",
       "size_category": "large",
       "model_type": "instruct",
       "cost_per_1k_tokens": 0.0,
+      "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
+      "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
       "backend_kwargs": {
-        "device_map": "auto",
-        "torch_dtype": "auto",
-        "token_env": "HF_TOKEN",
-        "attn_implementation": "auto"
+        "send_seed": true
       }
     }
   ],
@@ -98,5 +95,5 @@
       "reasoning_language": "en"
     }
   ],
-  "max_concurrent": 1
+  "max_concurrent": 8
 }

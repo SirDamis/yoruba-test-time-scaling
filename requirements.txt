@@ -6,3 +6,5 @@ sentencepiece>=0.2
 protobuf>=4.25
 safetensors>=0.4
 matplotlib>=3.8
+# Optional (L4/SM>=8 Transformers path): pip install flash-attn --no-build-isolation
+# vLLM is installed separately for local serving: pip install vllm

@@ -45,6 +45,15 @@ def main() -> None:
         default=True,
         help="Print per-example progress to stderr (default: true). Use --no-progress to silence.",
     )
+    parser.add_argument(
+        "--max-concurrent",
+        type=int,
+        default=None,
+        help=(
+            "Max in-flight generations for openai_compatible/vLLM (overrides config). "
+            "Transformers backend always uses 1."
+        ),
+    )
     args = parser.parse_args()
 
     config = load_inference_run_config(args.config)
@@ -62,6 +71,7 @@ def main() -> None:
         resume=args.resume,
         overwrite=args.overwrite,
         progress=args.progress,
+        max_concurrent=args.max_concurrent,
     )
     print(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True))
 
