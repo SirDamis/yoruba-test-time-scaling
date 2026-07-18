@@ -39,6 +39,12 @@ def main() -> None:
         action="store_true",
         help="Delete prior candidates/selections/checkpoint for this run_id and start clean.",
     )
+    parser.add_argument(
+        "--progress",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Print per-example progress to stderr (default: true). Use --no-progress to silence.",
+    )
     args = parser.parse_args()
 
     config = load_inference_run_config(args.config)
@@ -55,6 +61,7 @@ def main() -> None:
         limit=args.limit,
         resume=args.resume,
         overwrite=args.overwrite,
+        progress=args.progress,
     )
     print(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True))
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sys
 import time
 from collections import defaultdict
 from dataclasses import replace
@@ -19,6 +20,46 @@ from .selection import select_candidate
 
 # Checkpoint file listing fully finished work units (written after each unit is flushed).
 CHECKPOINT_FILENAME = "completed_units.jsonl"
+
+
+def log_progress(message: str, *, enabled: bool = True) -> None:
+    """Print a progress line to stderr (keeps final stdout JSON clean)."""
+    if not enabled:
+        return
+    print(message, file=sys.stderr, flush=True)
+
+
+def _format_progress_line(
+    *,
+    run_id: str,
+    done: int,
+    total: int,
+    dataset: str,
+    model: str,
+    method: str,
+    example_id: str,
+    is_correct: bool | None = None,
+    latency_s: float | None = None,
+    skipped: int = 0,
+    correct_so_far: int | None = None,
+    scored_so_far: int | None = None,
+) -> str:
+    pct = (100.0 * done / total) if total else 100.0
+    parts = [
+        f"[{run_id}]",
+        f"{done}/{total} ({pct:5.1f}%)",
+        f"{dataset} | {model} | {method} | {example_id}",
+    ]
+    if is_correct is not None:
+        parts.append("OK" if is_correct else "WRONG")
+    if correct_so_far is not None and scored_so_far is not None and scored_so_far > 0:
+        acc = 100.0 * correct_so_far / scored_so_far
+        parts.append(f"acc={acc:.1f}% ({correct_so_far}/{scored_so_far})")
+    if latency_s is not None:
+        parts.append(f"{latency_s:.1f}s")
+    if skipped:
+        parts.append(f"skipped={skipped}")
+    return "  ".join(parts)
 
 
 def derive_sample_seed(base_seed: int | None, example_id: str, sample_index: int) -> int | None:
@@ -339,6 +380,7 @@ def run_inference_pipeline(
     limit: int | None = None,
     resume: bool = True,
     overwrite: bool = False,
+    progress: bool = True,
 ) -> dict[str, object]:
     """Run inference and write candidates/selections under ``runs/<run_id>/``.
 
@@ -354,6 +396,7 @@ def run_inference_pipeline(
 
     ``resume=True`` (default): de-dupe artifacts, skip completed units, append.
     ``overwrite=True``: delete prior artifacts for this run_id and start clean.
+    ``progress=True`` (default): print per-unit progress to stderr.
     """
     if overwrite and resume:
         # Overwrite wins: start a fresh run directory state.
@@ -418,23 +461,71 @@ def run_inference_pipeline(
         **resume_stats,
     }
 
+    # Preload examples so we can report total planned work units.
+    examples_by_dataset: dict[str, list[InferenceExample]] = {}
+    total_units = 0
+    for dataset in datasets:
+        examples = load_dataset_examples(dataset, limit=limit)
+        examples_by_dataset[dataset.name] = examples
+        counts["examples"] += len(examples)
+        total_units += len(examples) * len(models) * (
+            len(standalone_methods) + len(nested_groups)
+        )
+
+    units_processed = 0  # completed this run + skipped (for progress denominator walk)
+    correct_so_far = 0
+    scored_so_far = 0
+    run_started = time.monotonic()
+
+    log_progress(
+        f"[{config.run_id}] starting  "
+        f"datasets={ [d.name for d in datasets] }  "
+        f"models={ [m.name for m in models] }  "
+        f"methods={ [m.name for m in methods] }  "
+        f"total_units={total_units}  "
+        f"already_done={len(completed)}  "
+        f"overwrite={overwrite}  resume={resume and file_mode == 'a'}  "
+        f"output={output_dir}",
+        enabled=progress,
+    )
+
     with candidates_path.open(file_mode, encoding="utf-8", newline="\n") as candidate_handle, selections_path.open(
         file_mode, encoding="utf-8", newline="\n"
     ) as selection_handle:
         for dataset in datasets:
-            examples = load_dataset_examples(dataset, limit=limit)
-            counts["examples"] += len(examples)
+            examples = examples_by_dataset[dataset.name]
+            log_progress(
+                f"[{config.run_id}] dataset={dataset.name}  examples={len(examples)}",
+                enabled=progress,
+            )
             for model in models:
+                log_progress(
+                    f"[{config.run_id}] loading model={model.name} ({model.model}) ...",
+                    enabled=progress,
+                )
+                model_load_started = time.monotonic()
                 backend = build_backend(model, default_timeout_s=config.default_request_timeout_s)
+                log_progress(
+                    f"[{config.run_id}] model ready={model.name}  "
+                    f"load_s={time.monotonic() - model_load_started:.1f}",
+                    enabled=progress,
+                )
 
                 # Independent methods: sample N times per method (legacy / non-nested).
                 for method in standalone_methods:
+                    log_progress(
+                        f"[{config.run_id}] method={method.name}  "
+                        f"style={method.prompt_style}  n={method.n}",
+                        enabled=progress,
+                    )
                     for example in examples:
                         unit = standalone_unit_key(dataset.name, model.name, method.name, example.id)
                         if unit in completed:
                             counts["units_skipped"] += 1
+                            units_processed += 1
                             continue
 
+                        unit_started = time.monotonic()
                         candidate_rows = run_example_candidates(
                             config=config,
                             dataset=dataset,
@@ -475,6 +566,32 @@ def run_inference_pipeline(
                         )
                         completed.add(unit)
                         counts["units_completed_this_run"] += 1
+                        units_processed += 1
+
+                        is_correct = bool(selection_row.get("is_correct"))
+                        scored_so_far += 1
+                        if is_correct:
+                            correct_so_far += 1
+                        latency_s = float(
+                            sum(float(r.get("latency_s") or 0.0) for r in candidate_rows)
+                        ) or (time.monotonic() - unit_started)
+                        log_progress(
+                            _format_progress_line(
+                                run_id=config.run_id,
+                                done=units_processed,
+                                total=total_units,
+                                dataset=dataset.name,
+                                model=model.name,
+                                method=method.name,
+                                example_id=example.id,
+                                is_correct=is_correct,
+                                latency_s=latency_s,
+                                skipped=int(counts["units_skipped"]),
+                                correct_so_far=correct_so_far,
+                                scored_so_far=scored_so_far,
+                            ),
+                            enabled=progress,
+                        )
 
                 # Nested groups: true greedy N=1 (if configured) + sample once at max k for TTC.
                 # Buffer all k slices, write as one batch, then checkpoint.
@@ -486,12 +603,19 @@ def run_inference_pipeline(
                     )
                     greedy_method = greedy_n1_methods[0] if greedy_n1_methods else None
                     sorted_methods = sorted(group_methods, key=lambda m: m.n)
+                    log_progress(
+                        f"[{config.run_id}] nested_group={group_id}  "
+                        f"methods={[m.name for m in sorted_methods]}  pool_n={pool_n}",
+                        enabled=progress,
+                    )
                     for example in examples:
                         unit = nested_unit_key(dataset.name, model.name, group_id, example.id)
                         if unit in completed:
                             counts["units_skipped"] += 1
+                            units_processed += 1
                             continue
 
+                        unit_started = time.monotonic()
                         # Separate true-greedy decode for N=1 (temp<=0), not first-of-pool.
                         greedy_rows: list[dict[str, object]] = []
                         if greedy_method is not None:
@@ -552,6 +676,9 @@ def run_inference_pipeline(
                             if is_nested_greedy_n1(method):
                                 selection_row["nested_greedy_n1"] = True
                             batch_selections.append(selection_row)
+                            scored_so_far += 1
+                            if selection_row.get("is_correct"):
+                                correct_so_far += 1
 
                         write_unit_batch(
                             candidate_handle,
@@ -578,6 +705,42 @@ def run_inference_pipeline(
                         )
                         completed.add(unit)
                         counts["units_completed_this_run"] += 1
+                        units_processed += 1
+
+                        any_correct = any(bool(r.get("is_correct")) for r in batch_selections)
+                        latency_s = float(
+                            sum(float(r.get("latency_s") or 0.0) for r in batch_candidates)
+                        ) or (time.monotonic() - unit_started)
+                        method_label = sample_method.name if sample_method is not None else group_id
+                        log_progress(
+                            _format_progress_line(
+                                run_id=config.run_id,
+                                done=units_processed,
+                                total=total_units,
+                                dataset=dataset.name,
+                                model=model.name,
+                                method=method_label,
+                                example_id=example.id,
+                                is_correct=any_correct,
+                                latency_s=latency_s,
+                                skipped=int(counts["units_skipped"]),
+                                correct_so_far=correct_so_far,
+                                scored_so_far=scored_so_far,
+                            ),
+                            enabled=progress,
+                        )
+
+    elapsed = time.monotonic() - run_started
+    log_progress(
+        f"[{config.run_id}] done  "
+        f"completed_this_run={counts['units_completed_this_run']}  "
+        f"skipped={counts['units_skipped']}  "
+        f"generations={counts['model_generations']}  "
+        f"elapsed_s={elapsed:.1f}  "
+        f"acc={ (100.0 * correct_so_far / scored_so_far) if scored_so_far else 0.0 :.1f}% "
+        f"({correct_so_far}/{scored_so_far})",
+        enabled=progress,
+    )
 
     manifest = {
         "run_id": config.run_id,
