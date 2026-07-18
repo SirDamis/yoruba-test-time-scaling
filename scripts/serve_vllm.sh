@@ -24,11 +24,11 @@ echo "Client env:"
 echo "  export OPENAI_COMPATIBLE_BASE_URL=\"http://localhost:${PORT}/v1\""
 echo "  export OPENAI_COMPATIBLE_API_KEY=\"EMPTY\""
 
+# Keep flags conservative for vLLM CLI compatibility across versions.
+# (e.g. --disable-log-requests was removed/renamed in newer vLLM.)
 exec vllm serve "${MODEL}" \
   --host "${HOST}" \
   --port "${PORT}" \
   --dtype auto \
   --max-model-len "${MAX_MODEL_LEN}" \
-  --gpu-memory-utilization "${GPU_MEM_UTIL}" \
-  --enable-chunked-prefill \
-  --disable-log-requests
+  --gpu-memory-utilization "${GPU_MEM_UTIL}"
