@@ -188,7 +188,7 @@ class TransformersChatBackend(InferenceBackend):
 
     def _generation_kwargs(self, temperature: float | None, max_tokens: int | None) -> dict[str, Any]:
         kwargs = {
-            "max_new_tokens": max_tokens or int(self.config.backend_kwargs.get("max_new_tokens", 512)),
+            "max_new_tokens": max_tokens or int(self.config.backend_kwargs.get("max_new_tokens", 1024)),
             "pad_token_id": self.tokenizer.pad_token_id or self.tokenizer.eos_token_id,
         }
         if self.tokenizer.eos_token_id is not None:
