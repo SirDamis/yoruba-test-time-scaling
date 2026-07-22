@@ -1,39 +1,15 @@
 {
-  "run_id": "e2_ttc_scaling",
+  "run_id": "e1_english_baseline",
   "output_dir": "runs",
   "seed": 20260708,
   "default_request_timeout_s": 180,
   "continue_on_error": false,
   "datasets": [
     {
-      "name": "afrimgsm",
-      "path": "data/normalized/math-reasoning/afrimgsm/all.jsonl",
-      "task": "math",
-      "source_dataset": "afrimgsm"
-    },
-    {
       "name": "afrimgsm_translate",
       "path": "data/normalized/math-reasoning/afrimgsm_translate/all.jsonl",
       "task": "math",
       "source_dataset": "afrimgsm_translate"
-    },
-    {
-      "name": "afrimmlu",
-      "path": "data/normalized/question-answering/afrimmlu/all.jsonl",
-      "task": "qa",
-      "source_dataset": "afrimmlu"
-    },
-    {
-      "name": "afriqa",
-      "path": "data/normalized/question-answering/afriqa/all.jsonl",
-      "task": "qa",
-      "source_dataset": "afriqa"
-    },
-    {
-      "name": "naijarc",
-      "path": "data/normalized/question-answering/naijarc/all.jsonl",
-      "task": "reading_comprehension",
-      "source_dataset": "naijarc"
     }
   ],
   "models": [
@@ -53,11 +29,11 @@
       }
     },
     {
-      "name": "qwen3-14b",
+      "name": "gemma3-4b",
       "backend": "transformers",
-      "model": "Qwen/Qwen3-14B",
-      "size_label": "14B",
-      "size_category": "medium",
+      "model": "google/gemma-3-4b-it",
+      "size_label": "4B",
+      "size_category": "tiny_small",
       "model_type": "instruct",
       "cost_per_1k_tokens": 0.0,
       "backend_kwargs": {
@@ -68,11 +44,11 @@
       }
     },
     {
-      "name": "qwen3-32b",
+      "name": "llama3.2-3b",
       "backend": "transformers",
-      "model": "Qwen/Qwen3-32B",
-      "size_label": "32B",
-      "size_category": "large",
+      "model": "meta-llama/Llama-3.2-3B-Instruct",
+      "size_label": "3B",
+      "size_category": "tiny_small",
       "model_type": "instruct",
       "cost_per_1k_tokens": 0.0,
       "backend_kwargs": {
@@ -85,21 +61,11 @@
   ],
   "methods": [
     {
-      "name": "english_cot_ttc",
+      "name": "english_cot",
       "prompt_style": "english_cot",
-      "selection": "majority_vote",
-      "n_values": [
-        1,
-        4,
-        8,
-        16,
-        32,
-        64
-      ],
-      "nested_n": true,
-      "temperature": 0.7,
-      "temperature_n1": 0.0,
-      "greedy_n1": true,
+      "selection": "first",
+      "n": 1,
+      "temperature": 0.0,
       "max_tokens": 1024,
       "reasoning_language": "en"
     }

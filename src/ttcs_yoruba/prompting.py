@@ -108,6 +108,64 @@ TASK_EXEMPLARS: dict[str, list[Exemplar]] = {
             ),
         ),
     ],
+    "math_en": [
+        Exemplar(
+            question="Tom has 5 bags of apples. Each bag contains 8 apples. He gives 12 apples to his friend. How many apples does Tom have left?",
+            choices=None,
+            reasoning_en=(
+                "Start with 5 bags * 8 apples per bag = 40 total apples. "
+                "He gives away 12 apples. Remaining apples = 40 - 12 = 28."
+            ),
+            reasoning_yo=(
+                "Bẹ̀rẹ̀ pẹ̀lú àpò 5 × èso ápù 8 nínú ọ̀kọ̀ọ̀kan = 40 èso lápapọ̀. "
+                "Ó fún ọ̀rẹ́ rẹ̀ ní èso 12. Èso tó kù = 40 - 12 = 28."
+            ),
+            answer="28",
+            translated_question="Tom has 5 bags of apples. Each bag contains 8 apples. He gives 12 apples to his friend. How many apples does Tom have left?",
+        ),
+        Exemplar(
+            question="Sarah reads 25 pages of a book on Monday and 30 pages on Tuesday. The book has 120 pages. How many pages does she still need to read?",
+            choices=None,
+            reasoning_en=(
+                "Pages read so far = 25 + 30 = 55. "
+                "Remaining pages = Total pages - Pages read = 120 - 55 = 65."
+            ),
+            reasoning_yo=(
+                "Ojú-ìwé tí a ti kà = 25 + 30 = 55. "
+                "Ojú-ìwé tó kù = Àpapọ̀ - Èyí tí a ti kà = 120 - 55 = 65."
+            ),
+            answer="65",
+            translated_question="Sarah reads 25 pages of a book on Monday and 30 pages on Tuesday. The book has 120 pages. How many pages does she still need to read?",
+        ),
+        Exemplar(
+            question="A baker makes 6 trays of cookies. Each tray holds 24 cookies. He sells 85 cookies. How many cookies are left?",
+            choices=None,
+            reasoning_en=(
+                "Total cookies = 6 trays * 24 cookies per tray = 144. "
+                "Cookies left = 144 - 85 = 59."
+            ),
+            reasoning_yo=(
+                "Àpapọ̀ kúkì = àtẹ̀ 6 × kúkì 24 nínú ọ̀kọ̀ọ̀kan = 144. "
+                "Kúkì tó kù = 144 - 85 = 59."
+            ),
+            answer="59",
+            translated_question="A baker makes 6 trays of cookies. Each tray holds 24 cookies. He sells 85 cookies. How many cookies are left?",
+        ),
+        Exemplar(
+            question="James bought a bike for $320. He had $280 saved and earned the rest by doing chores. If he did chores for 5 weeks earning the same amount each week, how much did he earn per week from chores?",
+            choices=None,
+            reasoning_en=(
+                "Amount needed from chores = 320 - 280 = 40. "
+                "Per week earnings = 40 / 5 = 8."
+            ),
+            reasoning_yo=(
+                "Owó tó nílò láti ọwọ́ iṣẹ́ = 320 - 280 = 40. "
+                "Owó ọ̀sọ̀ọ̀sẹ̀ = 40 / 5 = 8."
+            ),
+            answer="8",
+            translated_question="James bought a bike for $320. He had $280 saved and earned the rest by doing chores. If he did chores for 5 weeks earning the same amount each week, how much did he earn per week from chores?",
+        ),
+    ],
     "qa": [
         Exemplar(
             question="Kínni iyì p nínú 24 = 2p?",
@@ -286,118 +344,143 @@ def render_prompt(example: InferenceExample, prompt_style: str) -> PromptBundle:
 
 
 def render_exemplar_block(task: str, *, reasoning_mode: str) -> str:
-    """Render few-shot demos.
+    """Render few-shot demonstrations."""
 
-    reasoning_mode:
-      - ``en``: English chain-of-thought on the Yoruba question
-      - ``yo``: Yoruba chain-of-thought on the Yoruba question
-      - ``translate``: translate question to English, then English CoT
-    """
     exemplars = TASK_EXEMPLARS.get(task)
     if not exemplars:
         return ""
 
     blocks = ["Examples:"]
+
     for ex in exemplars:
+        parts = [
+            f"Question:\n{ex.question}",
+        ]
+
+        if ex.choices:
+            parts.append(
+                "Choices:\n" + "\n".join(format_choices(ex.choices))
+            )
+
         if reasoning_mode == "translate":
-            parts = [
-                f"Question (Yoruba):\n{ex.question}",
-            ]
-            if ex.choices:
-                parts.append("Choices:\n" + "\n".join(format_choices(ex.choices)))
             parts.extend(
                 [
                     f"English translation:\n{ex.translated_question}",
-                    f"Reasoning: {ex.reasoning_en}",
+                    f"Reasoning:\n{ex.reasoning_en}",
                     f"Final answer: {ex.answer}",
                 ]
             )
         else:
-            parts = [f"Question:\n{ex.question}"]
-            if ex.choices:
-                parts.append("Choices:\n" + "\n".join(format_choices(ex.choices)))
-            reasoning = ex.reasoning_yo if reasoning_mode == "yo" else ex.reasoning_en
-            parts.append(f"Reasoning: {reasoning}")
-            parts.append(f"Final answer: {ex.answer}")
+            reasoning = (
+                ex.reasoning_yo
+                if reasoning_mode == "yo"
+                else ex.reasoning_en
+            )
+
+            parts.extend(
+                [
+                    f"Reasoning:\n{reasoning}",
+                    f"Final answer: {ex.answer}",
+                ]
+            )
+
         blocks.append("\n\n".join(parts))
 
-    blocks.append("Now answer the following question.")
+    blocks.append("Now answer the following question using the same format.")
+
     return "\n\n---\n\n".join(blocks) + "\n\n"
+
+COMMON_SYSTEM_PROMPT = (
+    "You are a careful reasoning assistant.\n\n"
+    "Solve the user's problem accurately.\n"
+    "Return your response using the same format as the examples.\n"
+    "Return the final answer in the requested format."
+)
 
 
 def render_english_cot_prompt(example: InferenceExample) -> PromptBundle:
-    system = (
-        "You are solving questions from a Yoruba benchmark. "
-        "Think carefully through the problem in English. Provide the correct final answer."
+    task_for_exemplars = (
+        "math_en" if example.source_dataset == "afrimgsm_translate" else example.task
     )
-    exemplar_block = render_exemplar_block(example.task, reasoning_mode="en")
-    user = "\n\n".join(
-        [
-            f"{exemplar_block}{render_problem_block(example)}",
-            render_answer_format(example),
-            "Think through the problem step by step in English.",
-            "At the end, output: Final answer: <answer>",
-        ]
+    exemplar_block = render_exemplar_block(
+        task_for_exemplars,
+        reasoning_mode="en",
     )
-    return PromptBundle(system=system, user=user)
 
-
-def render_yoruba_cot_prompt(example: InferenceExample) -> PromptBundle:
-    system = (
-        "O n yanju awon ibeere lati idanwo Yorùbá. "
-        "Ronu daradara nipa ibeere naa ni èdè Yorùbá nikan. "
-        "Má ṣe lo èdè Gẹ̀ẹ́sì fún ìrònú (reasoning). "
-        "Fun idahun ikẹhin ti o tọ."
-    )
-    exemplar_block = render_exemplar_block(example.task, reasoning_mode="yo")
     user = "\n\n".join(
         [
             f"{exemplar_block}{render_problem_block(example)}",
             render_answer_format(example),
             (
-                "IMPORTANT: Write your entire step-by-step reasoning in Yorùbá only. "
-                "Do not reason in English. Do not translate the problem into English first."
-            ),
-            "Ronu nipa ibeere naa ni igbese-nipasẹ-igbesẹ ni Yorùbá nikan.",
-            "Ni ipari, kọ: Final answer: <answer>",
-        ]
-    )
-    return PromptBundle(system=system, user=user)
-
-
-def render_translate_pivot_prompt(example: InferenceExample) -> PromptBundle:
-    """E1 translate-pivot: translate Yoruba question → English reason → final answer.
-
-    Final answers stay in the evaluation format (option letter / number / Yoruba text).
-    """
-    system = (
-        "You are solving questions from a Yoruba benchmark. "
-        "First translate the Yoruba question into English. "
-        "Then reason step by step in English about the translated question. "
-        "Finally provide the correct final answer in the required answer format."
-    )
-    exemplar_block = render_exemplar_block(example.task, reasoning_mode="translate")
-    user = "\n\n".join(
-        [
-            f"{exemplar_block}{render_problem_block(example, question_label='Question (Yoruba)')}",
-            render_answer_format(example),
-            (
-                "Follow this procedure:\n"
-                "1. Translate the Yoruba question into clear English.\n"
-                "2. Reason step by step in English using that translation.\n"
-                "3. End with exactly one final line in this format:\n"
+                "Instructions:\n"
+                "- Follow the same format as the examples.\n"
+                "- Reason step by step in English.\n"
+                "- Use only the information provided in the question.\n"
+                "- Write your reasoning after 'Reasoning:'.\n"
+                "- Finish with exactly one line:\n"
                 "Final answer: <answer>"
             ),
+        ]
+    )
+
+    return PromptBundle(
+        system=COMMON_SYSTEM_PROMPT,
+        user=user,
+    )
+
+def render_yoruba_cot_prompt(example: InferenceExample) -> PromptBundle:
+    exemplar_block = render_exemplar_block(
+        example.task,
+        reasoning_mode="yo",
+    )
+
+    user = "\n\n".join(
+        [
+            f"{exemplar_block}{render_problem_block(example)}",
+            render_answer_format(example),
             (
-                "Use these labels in your response:\n"
-                "English translation: <...>\n"
-                "Reasoning: <...>\n"
-                "Final answer: <...>"
+                "Instructions:\n"
+                "- Follow the same format as the examples.\n"
+                "- Reason step by step in Yoruba.\n"
+                "- Use only the information provided in the question.\n"
+                "- Write your reasoning after 'Reasoning:'.\n"
+                "- Finish with exactly one line:\n"
+                "Final answer: <answer>"
             ),
         ]
     )
-    return PromptBundle(system=system, user=user)
 
+    return PromptBundle(
+        system=COMMON_SYSTEM_PROMPT,
+        user=user,
+    )
+
+def render_translate_pivot_prompt(example: InferenceExample) -> PromptBundle:
+    exemplar_block = render_exemplar_block(
+        example.task,
+        reasoning_mode="translate",
+    )
+
+    user = "\n\n".join(
+        [
+            f"{exemplar_block}{render_problem_block(example)}",
+            render_answer_format(example),
+            (
+                "Instructions:\n"
+                "- Follow the same format as the examples.\n"
+                "- Translate the question into English.\n"
+                "- Solve the translated question by reasoning step by step in English.\n"
+                "- Write your reasoning after 'Reasoning:'.\n"
+                "- Finish with exactly one line:\n"
+                "Final answer: <answer>"
+            ),
+        ]
+    )
+
+    return PromptBundle(
+        system=COMMON_SYSTEM_PROMPT,
+        user=user,
+    )
 
 def render_problem_block(
     example: InferenceExample,
@@ -405,18 +488,31 @@ def render_problem_block(
     question_label: str = "Question",
 ) -> str:
     parts = [f"{question_label}:\n{example.question}"]
-    if example.choices:
-        parts.append("Choices:\n" + "\n".join(format_choices(example.choices)))
-    return "\n\n".join(parts)
 
+    if example.choices:
+        parts.append(
+            "Choices:\n" + "\n".join(format_choices(example.choices))
+        )
+
+    return "\n\n".join(parts)
 
 def render_answer_format(example: InferenceExample) -> str:
     if example.answer_type == "choice":
-        return "Answer format: output only the option letter, such as A, B, C, or D."
-    if example.answer_type == "number":
-        return "Answer format: output only the final number."
-    return "Answer format: output a concise final answer in Yoruba."
+        return (
+            "Answer format:\n"
+            "Final answer: <option letter>"
+        )
 
+    if example.answer_type == "number":
+        return (
+            "Answer format:\n"
+            "Final answer: <number>"
+        )
+
+    return (
+        "Answer format:\n"
+        "Final answer: <concise Yoruba answer>"
+    )
 
 def format_choices(choices: list[str]) -> list[str]:
     formatted = []

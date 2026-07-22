@@ -16,6 +16,7 @@ from .schema import BenchmarkItem, ValidationError
 
 SOURCE_DEFAULTS: dict[str, dict[str, str]] = {
     "afrimgsm": {"task": "math", "answer_type": "number"},
+    "afrimgsm_translate": {"task": "math", "answer_type": "number"},
     "afrimmlu": {"task": "qa", "answer_type": "choice"},
     "afriqa": {"task": "qa", "answer_type": "text"},
     "naijarc": {"task": "reading_comprehension", "answer_type": "text"},
@@ -91,6 +92,16 @@ HF_DATASET_REGISTRY: dict[str, HFDatasetSpec] = {
         data_files={
             "train": "https://huggingface.co/datasets/masakhane/afrimgsm/resolve/main/data/yor/dev.tsv",
             "test": "https://huggingface.co/datasets/masakhane/afrimgsm/resolve/main/data/yor/test.tsv",
+        },
+    ),
+    "afrimgsm_translate": HFDatasetSpec(
+        key="afrimgsm_translate",
+        hf_id="masakhane/afrimgsm-translate-test",
+        config="yor",
+        group="math-reasoning",
+        default_splits=("test",),
+        data_files={
+            "test": "https://huggingface.co/datasets/masakhane/afrimgsm-translate-test/resolve/main/data/yor/test.tsv",
         },
     ),
 }
@@ -243,7 +254,7 @@ def normalize_hf_record(source_dataset: str, raw: dict[str, Any], split: str, sp
             "requires_yoruba_output": True,
             "metadata": {"year": raw.get("year"), "story_id": raw.get("story_id")},
         }
-    elif source_dataset == "afrimgsm":
+    elif source_dataset in ("afrimgsm", "afrimgsm_translate"):
         row = {
             "id": stable_id(source_dataset, {**raw, "split": split}),
             "task": "math",

@@ -12,6 +12,12 @@
       "source_dataset": "afrimgsm"
     },
     {
+      "name": "afrimgsm_translate",
+      "path": "data/normalized/math-reasoning/afrimgsm_translate/all.jsonl",
+      "task": "math",
+      "source_dataset": "afrimgsm_translate"
+    },
+    {
       "name": "afrimmlu",
       "path": "data/normalized/question-answering/afrimmlu/all.jsonl",
       "task": "qa",
