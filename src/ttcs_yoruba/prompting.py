@@ -166,66 +166,194 @@ TASK_EXEMPLARS: dict[str, list[Exemplar]] = {
             translated_question="James bought a bike for $320. He had $280 saved and earned the rest by doing chores. If he did chores for 5 weeks earning the same amount each week, how much did he earn per week from chores?",
         ),
     ],
-    "qa": [
+    # "qa": [
+    #     Exemplar(
+    #         question="Kínni ìṣesí ọrọ̀ ajé pàtàkì tó tàn kálẹ̀ jùlọ ní àgbáyé?",
+    #         choices=["Ìwakùsà", "Ìdọdẹ àti ìkó ǹkan jọ", "Ẹja pípa ", "Iṣẹ́ Àgbẹ̀"],
+    #         reasoning_en=(
+    #             "The question asks about the most widespread economic activity globally. "
+    #             "Agriculture sustains the largest share of humanity, especially in developing countries. "
+    #             "The answer is D (Iṣẹ́ Àgbẹ̀)."
+    #         ),
+    #         reasoning_yo=(
+    #             "Ìbéèrè náà ń béèrè nípa ìṣesí ọrọ̀ ajé tó tàn kálẹ̀ jùlọ ní àgbáyé. "
+    #             "Iṣẹ́ àgbẹ̀ ni ó ń bọ́ ọ̀pọ̀ jùlọ ènìyàn, pàápàá ní àwọn orílẹ̀-èdè tó ń dàgbà sókè. "
+    #             "Ìdáhùn ni D (Iṣẹ́ Àgbẹ̀)."
+    #         ),
+    #         answer="D",
+    #         translated_question="What is the most widespread economic activity in the world?",
+    #     ),
+    #     Exemplar(
+    #         question="Ẹ̀sìn wo ní ìsàlẹ̀ ni ẹ̀sìn àgbáyé?",
+    #         choices=["Taoism", "Islam", "Shintoism", "Confucianism"],
+    #         reasoning_en=(
+    #             "World religions are those with large, globally distributed followings. "
+    #             "Islam is a major world religion alongside Christianity, Hinduism, and Buddhism. "
+    #             "Taoism, Shintoism, and Confucianism are primarily ethnic religions concentrated in East Asia. "
+    #             "The answer is B."
+    #         ),
+    #         reasoning_yo=(
+    #             "Àwọn ẹ̀sìn àgbáyé jẹ́ àwọn ẹ̀sìn tí ó ní àwọn ọmọlẹ́yìn púpọ̀ káàkiri àgbáyé. "
+    #             "Islam jẹ́ ẹ̀sìn àgbáyé pàtàkì pẹ̀lú Christianity, Hinduism, àti Buddhism. "
+    #             "Taoism, Shintoism, àti Confucianism jẹ́ àwọn ẹ̀sìn ẹ̀yà-pàtàkì tí ó wà ní East Asia. "
+    #             "Ìdáhùn ni B."
+    #         ),
+    #         answer="B",
+    #         translated_question="Which of the following is a world religion?",
+    #     ),
+    #     Exemplar(
+    #         question="Èwo nínú àwọn wọ̀nyìí ni àpẹẹrẹ orílẹ̀-èdè tí ò ní ìpínlẹ̀?",
+    #         choices=["Jámánì ", "Ísráẹ́lì ", "Palẹsitínì", "Románíà "],
+    #         reasoning_en=(
+    #             "A stateless nation is a people group without a sovereign state. "
+    #             "Germany, Israel, and Romania are all recognised sovereign states. "
+    #             "Palestine lacks full statehood in international law, making it a stateless nation. "
+    #             "The answer is C."
+    #         ),
+    #         reasoning_yo=(
+    #             "Orílẹ̀-èdè tí ò ní ìpínlẹ̀ jẹ́ ẹgbẹ́ ènìyàn kan tí kò ní ìjọba àṣẹ tìrẹ. "
+    #             "Jámánì, Ísráẹ́lì, àti Románíà jẹ́ àwọn orílẹ̀-èdè tí a mọ̀ sí ẹlẹ́tọ̀ọ́. "
+    #             "Palẹsitínì kò ní ipò ìjọba àṣẹ kíkún nínú òfin ilẹ̀ òkèèrè, èyí sọ ọ́ di orílẹ̀-èdè tí ò ní ìpínlẹ̀. "
+    #             "Ìdáhùn ni C."
+    #         ),
+    #         answer="C",
+    #         translated_question="Which of the following is an example of a stateless nation?",
+    #     ),
+    #     Exemplar(
+    #         question="Ọ̀pọ̀lọpọ̀ àwọn orílẹ̀-èdè Latin America ti gba òmìnira",
+    #         choices=["láìpé lẹ́yìn Ogun Àgbáyé II", "Ní ọdún 1960", "láàrín àsìkò Ogun Àgbáyé I ", "ní ìbẹ̀rẹ̀ ọgọ́rùn ọdún ìkankàn-din-lógún"],
+    #         reasoning_en=(
+    #             "Most Latin American nations achieved independence in the early 19th century "
+    #             "through wars against Spanish and Portuguese colonial rule, between roughly 1810 and 1825. "
+    #             "The other time periods are too late. The answer is D."
+    #         ),
+    #         reasoning_yo=(
+    #             "Ọ̀pọ̀lọpọ̀ àwọn orílẹ̀-èdè Latin America gba òmìnira ní ìbẹ̀rẹ̀ ọgọ́rùn ọdún ìkankàn-din-lógún "
+    #             "nípasẹ̀ àwọn ogun tako ìjọba amúnisìn Spain àti Portugal, láàárín nǹkan bíi 1810 sí 1825. "
+    #             "Àwọn àsìkò yòókù ti pẹ́ jù. Ìdáhùn ni D."
+    #         ),
+    #         answer="D",
+    #         translated_question="Most Latin American countries gained their independence",
+    #     ),
+    # ],
+    
+    "qa" : [
         Exemplar(
-            question="Kínni iyì p nínú 24 = 2p?",
-            choices=["p = 4", "p = 8", "p = 12", "p = 24"],
+            question="Èwo nínú àwọn wọ̀nyí ni orísun agbára tí a lè tún ṣe?",
+            choices=["Edu", "Òróró", "Agbára oòrùn", "Gáàsì àdánidá"],
             reasoning_en=(
-                "The equation is 24 = 2p. Divide both sides by 2: p = 12. This matches option C."
+                "The question asks which energy source is renewable. "
+                "Solar energy is naturally replenished by the sun, whereas coal, oil, and natural gas are fossil fuels. "
+                "Therefore, the answer is C."
             ),
             reasoning_yo=(
-                "Ìṣirò náà ni 24 = 2p. Pín ẹ̀gbẹ́ méjèèjì pẹ̀lú 2: p = 12. Èyí jẹ́ àṣàyàn C."
+                "Ìbéèrè náà ń béèrè nípa orísun agbára tí a lè tún ṣe. "
+                "Agbára oòrùn máa ń tún ara rẹ̀ ṣe nípasẹ̀ oòrùn, ṣùgbọ́n edu, òróró, àti gáàsì àdánidá jẹ́ epo ilẹ̀ tí kò ṣeé tún ṣe. "
+                "Nítorí náà, ìdáhùn ni C ."
             ),
             answer="C",
-            translated_question="What is the value of p in 24 = 2p?",
+            translated_question="Which of the following is a renewable source of energy?",
         ),
         Exemplar(
-            question=(
-                "Ms. Perez wa àpapọ̀ máílì 40 ní ọjọ́ 5. Ó wa iye máílì yìí kan náà "
-                "ní ọjọ́ kọ̀ọ̀kan. Iye máílì mélòó ni Ms. Perez wà ní ọjọ́ kọ̀ọ̀kan?"
-            ),
-            choices=["5", "7", "8", "9"],
+            question="Ẹ̀sìn wo ló dá lórí ẹ̀kọ́ Siddhartha Gautama?",
+            choices=["Islam", "Buddhism", "Judaism", "Sikhism"],
             reasoning_en=(
-                "Total miles = 40, total days = 5. Same distance each day: 40 ÷ 5 = 8 miles per day. "
-                "The answer is C."
+                "Siddhartha Gautama, also known as the Buddha, founded Buddhism. "
+                "The other religions were founded by different historical figures or developed through different traditions. "
+                "Therefore, the answer is B."
             ),
             reasoning_yo=(
-                "Àpapọ̀ máílì = 40, àpapọ̀ ọjọ́ = 5. Ó rìn iye kan náà lójúmọ́: 40 ÷ 5 = 8 máílì lójúmọ́. "
-                "Ìdáhùn ni C."
+                "Siddhartha Gautama, tí a tún mọ̀ sí Buddha, ni ó dá ẹ̀sìn Buddhism sílẹ̀. "
+                "Àwọn ẹ̀sìn mìíràn ní ìpilẹ̀ tàbí olùdásílẹ̀ tó yàtọ̀. "
+                "Nítorí náà, ìdáhùn ni B."
+            ),
+            answer="B",
+            translated_question="Which religion is based on the teachings of Siddhartha Gautama?",
+        ),
+        Exemplar(
+            question="Èwo nínú àwọn wọ̀nyí ni àpẹẹrẹ orílẹ̀-èdè tó wà lórí erékùṣù?",
+            choices=["Nepal", "Mongolia", "Madagascar", "Chad"],
+            reasoning_en=(
+                "An island country is surrounded by water. "
+                "Madagascar is a large island nation in the Indian Ocean, while Nepal, Mongolia, and Chad are landlocked countries. "
+                "Therefore, the answer is C."
+            ),
+            reasoning_yo=(
+                "Orílẹ̀-èdè erékùṣù ni orílẹ̀-èdè tí omi yí ká. "
+                "Madagascar jẹ́ orílẹ̀-èdè erékùṣù ní Òkun India, nígbà tí Nepal, Mongolia, àti Chad jẹ́ orílẹ̀-èdè tí kò ní etíkun. "
+                "Nítorí náà, ìdáhùn ni C."
             ),
             answer="C",
-            translated_question=(
-                "Ms. Perez drove a total of 40 miles in 5 days. She drove the same number of miles "
-                "each day. How many miles did Ms. Perez drive each day?"
-            ),
+            translated_question="Which of the following is an island country?",
         ),
         Exemplar(
-            question="Ṣàwarí òpó iye −40 ÷ (−8).",
-            choices=["1 lórí 5", "-5", "−1 lórí 5", "5"],
+            question="Ọ̀pọ̀ àwọn orílẹ̀-èdè Áfíríkà gba òmìnira nígbà wo?",
+            choices=[
+                "Ní ọgọ́rùn-ún ọdún kẹrìnlá",
+                "Ní ọdún 1960s",
+                "Lẹ́yìn Ogun Agbaye Kìnní",
+                "Ní ọgọ́rùn-ún ọdún kẹrìndínlógún",
+            ],
             reasoning_en=(
-                "−40 ÷ (−8) = 5. Negative divided by negative equals positive. "
-                "40 ÷ 8 = 5, so the answer is D."
+                "Many African countries became independent during the wave of decolonization in the late 1950s and 1960s. "
+                "The 1960s are often called the 'Decade of Africa' because many countries gained independence then. "
+                "Therefore, the answer is B."
             ),
             reasoning_yo=(
-                "−40 ÷ (−8) = 5. Àìdára pín sí àìdára jẹ́ dídára. "
-                "40 ÷ 8 = 5, nítorí náà ìdáhùn ni D."
+                "Ọ̀pọ̀ àwọn orílẹ̀-èdè Áfíríkà gba òmìnira ní àsìkò ìparí amúnisìn ní ìparí ọdún 1950 àti ọdún 1960. "
+                "Ọdún 1960 ni a mọ̀ sí àsìkò tí ọ̀pọ̀ orílẹ̀-èdè Áfíríkà gba òmìnira. "
+                "Nítorí náà, ìdáhùn ni B."
             ),
-            answer="D",
-            translated_question="Find the value of −40 ÷ (−8).",
+            answer="B",
+            translated_question="Most African countries gained independence during which period?",
         ),
+    ],
+
+    "qa_en": [
         Exemplar(
-            question="Báwo ni 1/4 + 2/4 ṣe dọ́gba?",
-            choices=["1/4", "4/3", "3/4", "1/2"],
+            question="Which of the following is a renewable source of energy?",
+            choices=["Coal", "Oil", "Solar energy", "Natural gas"],
             reasoning_en=(
-                "When adding fractions with the same denominator, add the numerators: "
-                "1/4 + 2/4 = (1+2)/4 = 3/4. The answer is C."
-            ),
-            reasoning_yo=(
-                "Nígbà tí a ń ṣàfikún ìdá pẹ̀lú oníṣirò abẹ́ kan náà, ṣàfikún àwọn oníṣirò òkè: "
-                "1/4 + 2/4 = (1+2)/4 = 3/4. Ìdáhùn ni C."
+                "The question asks which energy source is renewable. "
+                "Solar energy is naturally replenished by the sun, whereas coal, oil, and natural gas are fossil fuels. "
+                "Therefore, the answer is C (Solar energy)."
             ),
             answer="C",
-            translated_question="What is 1/4 + 2/4 equal to?",
+        ),
+        Exemplar(
+            question="Which religion is based on the teachings of Siddhartha Gautama?",
+            choices=["Islam", "Buddhism", "Judaism", "Sikhism"],
+            reasoning_en=(
+                "Siddhartha Gautama, also known as the Buddha, founded Buddhism. "
+                "The other religions were founded by different historical figures or developed through different traditions. "
+                "Therefore, the answer is B."
+            ),
+            answer="B",
+        ),
+        Exemplar(
+            question="Which of the following is an island country?",
+            choices=["Nepal", "Mongolia", "Madagascar", "Chad"],
+            reasoning_en=(
+                "An island country is surrounded by water. "
+                "Madagascar is a large island nation in the Indian Ocean, while Nepal, Mongolia, and Chad are landlocked countries. "
+                "Therefore, the answer is C."
+            ),
+            answer="C",
+        ),
+        Exemplar(
+            question="Most African countries gained independence during which period?",
+            choices=[
+                "The 14th century",
+                "The 1960s",
+                "After World War I",
+                "The 16th century",
+            ],
+            reasoning_en=(
+                "Many African countries became independent during the wave of decolonization in the late 1950s and 1960s. "
+                "The 1960s are often called the 'Decade of Africa' because many countries gained independence then. "
+                "Therefore, the answer is B."
+            ),
+            answer="B",
         ),
     ],
     "reading_comprehension": [
