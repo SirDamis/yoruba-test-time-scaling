@@ -318,7 +318,9 @@ TASK_EXEMPLARS: dict[str, list[Exemplar]] = {
                 "Solar energy is naturally replenished by the sun, whereas coal, oil, and natural gas are fossil fuels. "
                 "Therefore, the answer is C (Solar energy)."
             ),
+            reasoning_yo="",
             answer="C",
+            translated_question="Which of the following is a renewable source of energy?",
         ),
         Exemplar(
             question="Which religion is based on the teachings of Siddhartha Gautama?",
@@ -328,7 +330,9 @@ TASK_EXEMPLARS: dict[str, list[Exemplar]] = {
                 "The other religions were founded by different historical figures or developed through different traditions. "
                 "Therefore, the answer is B."
             ),
+            reasoning_yo="",
             answer="B",
+            translated_question="Which religion is based on the teachings of Siddhartha Gautama?",
         ),
         Exemplar(
             question="Which of the following is an island country?",
@@ -338,7 +342,9 @@ TASK_EXEMPLARS: dict[str, list[Exemplar]] = {
                 "Madagascar is a large island nation in the Indian Ocean, while Nepal, Mongolia, and Chad are landlocked countries. "
                 "Therefore, the answer is C."
             ),
+            reasoning_yo="",
             answer="C",
+            translated_question="Which of the following is an island country?",
         ),
         Exemplar(
             question="Most African countries gained independence during which period?",
@@ -353,7 +359,9 @@ TASK_EXEMPLARS: dict[str, list[Exemplar]] = {
                 "The 1960s are often called the 'Decade of Africa' because many countries gained independence then. "
                 "Therefore, the answer is B."
             ),
+            reasoning_yo="",
             answer="B",
+            translated_question="Most African countries gained independence during which period?",
         ),
     ],
     "reading_comprehension": [
@@ -527,9 +535,8 @@ COMMON_SYSTEM_PROMPT = (
 
 
 def render_english_cot_prompt(example: InferenceExample) -> PromptBundle:
-    task_for_exemplars = (
-        "math_en" if example.source_dataset == "afrimgsm_translate" else example.task
-    )
+    task_map = {"afrimgsm_translate": "math_en", "afrimmlu_translate": "qa_en"}
+    task_for_exemplars = task_map.get(example.source_dataset, example.task)
     exemplar_block = render_exemplar_block(
         task_for_exemplars,
         reasoning_mode="en",

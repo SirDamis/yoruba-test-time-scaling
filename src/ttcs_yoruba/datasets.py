@@ -18,6 +18,7 @@ SOURCE_DEFAULTS: dict[str, dict[str, str]] = {
     "afrimgsm": {"task": "math", "answer_type": "number"},
     "afrimgsm_translate": {"task": "math", "answer_type": "number"},
     "afrimmlu": {"task": "qa", "answer_type": "choice"},
+    "afrimmlu_translate": {"task": "qa", "answer_type": "choice"},
     "afriqa": {"task": "qa", "answer_type": "text"},
     "naijarc": {"task": "reading_comprehension", "answer_type": "text"},
 }
@@ -56,6 +57,16 @@ HF_DATASET_REGISTRY: dict[str, HFDatasetSpec] = {
             "validation": "https://huggingface.co/datasets/masakhane/afrimmlu/resolve/main/data/yor/val.tsv",
             "dev": "https://huggingface.co/datasets/masakhane/afrimmlu/resolve/main/data/yor/dev.tsv",
             "test": "https://huggingface.co/datasets/masakhane/afrimmlu/resolve/main/data/yor/test.tsv",
+        },
+    ),
+    "afrimmlu_translate": HFDatasetSpec(
+        key="afrimmlu_translate",
+        hf_id="masakhane/afrimmlu-translate-test",
+        config="yor",
+        group="question-answering",
+        default_splits=("test",),
+        data_files={
+            "test": "https://huggingface.co/datasets/masakhane/afrimmlu-translate-test/resolve/main/data/yor/test.tsv",
         },
     ),
     "afriqa": HFDatasetSpec(
@@ -206,7 +217,7 @@ def compact_download_row(item: BenchmarkItem) -> dict[str, Any]:
 
 
 def normalize_hf_record(source_dataset: str, raw: dict[str, Any], split: str, spec: HFDatasetSpec) -> BenchmarkItem:
-    if source_dataset == "afrimmlu":
+    if source_dataset in ("afrimmlu", "afrimmlu_translate"):
         choices = coerce_choices(raw.get("choices"))
         row = {
             "id": stable_id(source_dataset, {**raw, "split": split}),
