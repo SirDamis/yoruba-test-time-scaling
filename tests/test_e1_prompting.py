@@ -26,6 +26,18 @@ def _math_example() -> InferenceExample:
     )
 
 
+def _translated_math_example() -> InferenceExample:
+    return InferenceExample(
+        id="math_en_001",
+        task="math",
+        question="Titi has 3 books. She buys 2 packs with 4 books each. How many books does she have now?",
+        choices=None,
+        gold_answer="11",
+        answer_type="number",
+        source_dataset="afrimgsm_translate",
+    )
+
+
 def test_e1_config_has_three_strategies() -> None:
     cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language.json")
     assert len(cfg.models) == 3
@@ -59,6 +71,7 @@ def test_e1_vllm_config_matches_experiment_with_openai_compatible() -> None:
 
 def test_translate_pivot_instructs_translation() -> None:
     prompt = render_prompt(_math_example(), "translate_pivot")
+    assert "Read the Yoruba problem" in prompt.system
     assert "English translation" in prompt.user
     assert "Translate the Yoruba question" in prompt.user
     assert "Question (Yoruba)" in prompt.user
@@ -66,14 +79,22 @@ def test_translate_pivot_instructs_translation() -> None:
 
 def test_yoruba_cot_uses_yoruba_exemplar_reasoning() -> None:
     prompt = render_prompt(_math_example(), "yoruba_cot")
-    assert "Start with 10 boxes" not in prompt.user
-    assert "Bẹ̀rẹ̀ pẹ̀lú àpótí" in prompt.user or "Àpapọ̀" in prompt.user
+    assert "First translate the quantities" not in prompt.user
+    assert "Kọ́kọ́ túmọ̀ iye" in prompt.user or "Àpapọ̀" in prompt.user
 
 
 def test_english_cot_uses_english_exemplar_reasoning() -> None:
     prompt = render_prompt(_math_example(), "english_cot")
-    assert "Start with 10 boxes" in prompt.user
-    assert "Bẹ̀rẹ̀ pẹ̀lú àpótí" not in prompt.user
+    assert "First translate the quantities" in prompt.user
+    assert "Kọ́kọ́ túmọ̀ iye" not in prompt.user
+
+
+def test_english_cot_on_translated_dataset_does_not_call_question_yoruba() -> None:
+    prompt = render_prompt(_translated_math_example(), "english_cot")
+    assert "Read the Yoruba problem" not in prompt.system
+    assert "Question (Yoruba)" not in prompt.user
+    assert "Yoruba quantities" not in prompt.user
+    assert "Question:\nTiti has 3 books" in prompt.user
 
 
 def test_extract_answer_from_translate_pivot_response() -> None:
@@ -91,5 +112,6 @@ if __name__ == "__main__":
     test_translate_pivot_instructs_translation()
     test_yoruba_cot_uses_yoruba_exemplar_reasoning()
     test_english_cot_uses_english_exemplar_reasoning()
+    test_english_cot_on_translated_dataset_does_not_call_question_yoruba()
     test_extract_answer_from_translate_pivot_response()
     print("ok")

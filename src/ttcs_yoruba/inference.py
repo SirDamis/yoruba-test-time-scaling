@@ -5,7 +5,7 @@ import json
 import sys
 import time
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import replace
 from pathlib import Path
 from typing import Any, Callable, Iterable
@@ -441,6 +441,40 @@ def run_concurrent_map_tolerant(
     return results, errors
 
 
+def iter_concurrent_results_tolerant(
+    items: list[Any],
+    worker: Callable[[Any], Any],
+    *,
+    max_workers: int,
+):
+    """Yield ``(index, result, error)`` as each item finishes.
+
+    This lets callers persist successful units immediately instead of waiting
+    for an entire concurrency wave to complete.
+    """
+    if not items:
+        return
+    workers = max(1, min(max_workers, len(items)))
+    if workers == 1:
+        for idx, item in enumerate(items):
+            try:
+                yield idx, worker(item), None
+            except BaseException as exc:  # noqa: BLE001 — surface to caller
+                yield idx, None, exc
+        return
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        future_to_idx: dict[Future, int] = {
+            pool.submit(worker, item): idx for idx, item in enumerate(items)
+        }
+        for future in as_completed(future_to_idx):
+            idx = future_to_idx[future]
+            try:
+                yield idx, future.result(), None
+            except BaseException as exc:  # noqa: BLE001 — collect, re-raise later
+                yield idx, None, exc
+
+
 def run_inference_pipeline(
     config: InferenceRunConfig,
     *,
@@ -647,11 +681,12 @@ def run_inference_pipeline(
                     # Checkpoint successes even if some items in the wave fail.
                     for wave_start in range(0, len(pending), concurrency):
                         wave = pending[wave_start : wave_start + concurrency]
-                        wave_results, wave_errors = run_concurrent_map_tolerant(
+                        wave_errors: list[tuple[int, BaseException]] = []
+                        for idx, result, error in iter_concurrent_results_tolerant(
                             wave, _standalone_worker, max_workers=concurrency
-                        )
-                        for result in wave_results:
-                            if result is None:
+                        ):
+                            if error is not None:
+                                wave_errors.append((idx, error))
                                 continue
                             example = result["example"]
                             candidate_rows = result["candidate_rows"]
@@ -707,6 +742,7 @@ def run_inference_pipeline(
                             )
                         if wave_errors:
                             # Failures were not checkpointed; resume will retry them.
+                            wave_errors.sort(key=lambda pair: pair[0])
                             raise wave_errors[0][1]
 
                 # Nested groups: true greedy N=1 (if configured) + sample once at max k for TTC.
@@ -815,11 +851,12 @@ def run_inference_pipeline(
 
                     for wave_start in range(0, len(pending_nested), concurrency):
                         wave = pending_nested[wave_start : wave_start + concurrency]
-                        wave_results, wave_errors = run_concurrent_map_tolerant(
+                        wave_errors: list[tuple[int, BaseException]] = []
+                        for idx, result, error in iter_concurrent_results_tolerant(
                             wave, _nested_worker, max_workers=concurrency
-                        )
-                        for result in wave_results:
-                            if result is None:
+                        ):
+                            if error is not None:
+                                wave_errors.append((idx, error))
                                 continue
                             example = result["example"]
                             batch_candidates = result["batch_candidates"]
@@ -879,6 +916,7 @@ def run_inference_pipeline(
                                 enabled=progress,
                             )
                         if wave_errors:
+                            wave_errors.sort(key=lambda pair: pair[0])
                             raise wave_errors[0][1]
 
     elapsed = time.monotonic() - run_started

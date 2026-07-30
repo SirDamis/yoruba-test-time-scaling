@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -41,6 +42,31 @@ class _CountingBackend:
             token_count=3,
             latency_s=0.001,
         )
+
+
+class _StreamingVisibilityBackend:
+    def __init__(self, run_dir: Path) -> None:
+        self.run_dir = run_dir
+        self.saw_fast_row_during_slow_call = False
+
+    def generate(self, **kwargs):
+        from ttcs_yoruba.schema import BackendOutput
+
+        user_prompt = str(kwargs.get("user_prompt") or "")
+        if "Q1?" in user_prompt:
+            deadline = time.monotonic() + 2.0
+            candidates_path = self.run_dir / "candidates.jsonl"
+            while time.monotonic() < deadline:
+                text = candidates_path.read_text(encoding="utf-8") if candidates_path.exists() else ""
+                if '"example_id": "ex2"' in text:
+                    self.saw_fast_row_during_slow_call = True
+                    break
+                time.sleep(0.01)
+            if not self.saw_fast_row_during_slow_call:
+                raise AssertionError("fast concurrent result was not persisted before slow call finished")
+            return BackendOutput(response="Final answer: 1", token_count=3, latency_s=0.001)
+
+        return BackendOutput(response="Final answer: 2", token_count=3, latency_s=0.001)
 
 
 def _write_two_examples(path: Path) -> None:
@@ -156,6 +182,53 @@ def test_overwrite_reruns_everything() -> None:
             assert backend.calls == 4  # full re-run
         finally:
             inf.build_backend = original  # type: ignore[assignment]
+
+
+def test_concurrent_wave_persists_each_finished_unit_immediately() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        data_path = root / "data.jsonl"
+        _write_two_examples(data_path)
+        methods = [
+            InferenceMethodConfig(
+                name="english_cot",
+                prompt_style="english_cot",
+                selection="first",
+                n=1,
+                temperature=0.0,
+                max_tokens=32,
+            )
+        ]
+        config = InferenceRunConfig(
+            run_id="resume_test",
+            output_dir=root / "runs",
+            datasets=[
+                DatasetConfig(name="toy", path=data_path, task="math", source_dataset="toy")
+            ],
+            models=[
+                InferenceModelConfig(
+                    name="fake",
+                    backend="openai_compatible",
+                    model="fake",
+                    size_label="0B",
+                )
+            ],
+            methods=methods,
+            seed=0,
+            max_concurrent=2,
+        )
+        backend = _StreamingVisibilityBackend(root / "runs" / "resume_test")
+        import ttcs_yoruba.inference as inf
+
+        original = inf.build_backend
+        inf.build_backend = lambda *a, **k: backend  # type: ignore[assignment]
+        try:
+            manifest = run_inference_pipeline(config, resume=True)
+        finally:
+            inf.build_backend = original  # type: ignore[assignment]
+
+        assert backend.saw_fast_row_during_slow_call
+        assert manifest["counts"]["units_completed_this_run"] == 2
 
 
 def test_nested_resume_unit_is_whole_group() -> None:
@@ -363,6 +436,7 @@ def test_metrics_dedupe_duplicate_candidates() -> None:
 if __name__ == "__main__":
     test_resume_skips_completed_standalone_units()
     test_overwrite_reruns_everything()
+    test_concurrent_wave_persists_each_finished_unit_immediately()
     test_nested_resume_unit_is_whole_group()
     test_resume_recovers_when_checkpoint_missing_after_write()
     test_prepare_resume_dedupes_duplicate_appends()

@@ -25,86 +25,89 @@ TASK_EXEMPLARS: dict[str, list[Exemplar]] = {
     "math": [
         Exemplar(
             question=(
-                "Bàbá kan ra àpótí mẹwa (10) ti eso osan. Àpótí kọọkan ni eso osan 12. "
-                "Bàbá naa fi eso osan 15 fun awon aladugbo. Awon eso osan melo ni o ku?"
+                "Títí ní ìwé mẹ́ta (3). Ó ra àpò ìwé méjì (2) sí i. "
+                "Àpò kọ̀ọ̀kan ní ìwé mẹ́rin (4). Ìwé mélòó ni Títí ní báyìí?"
             ),
             choices=None,
             reasoning_en=(
-                "Start with 10 boxes * 12 oranges per box = 120 total oranges. "
-                "He gives away 15 oranges. Remaining oranges = 120 - 15 = 105."
+                "First translate the quantities: Titi starts with 3 books. "
+                "She buys 2 more packs, and each pack has 4 books, so the new books are 2 * 4 = 8. "
+                "Total books = 3 + 8 = 11."
             ),
             reasoning_yo=(
-                "Bẹ̀rẹ̀ pẹ̀lú àpótí 10 × ẹṣọ ọsàn 12 nínú ọ̀kọ̀ọ̀kan = 120 ẹṣọ ọsàn lápapọ̀. "
-                "Ó fún àwọn aládùúgbò ní ẹṣọ ọsàn 15. Ẹṣọ ọsàn tó kù = 120 - 15 = 105."
+                "Kọ́kọ́ túmọ̀ iye náà: Títí bẹ̀rẹ̀ pẹ̀lú ìwé 3. "
+                "Ó ra àpò ìwé 2 sí i, àpò kọ̀ọ̀kan sì ní ìwé 4, nítorí náà ìwé tuntun = 2 × 4 = 8. "
+                "Àpapọ̀ ìwé = 3 + 8 = 11."
             ),
-            answer="105",
+            answer="11",
             translated_question=(
-                "A father bought 10 boxes of oranges. Each box has 12 oranges. "
-                "He gave 15 oranges to the neighbors. How many oranges remain?"
+                "Titi has 3 books. She buys 2 more packs of books. "
+                "Each pack has 4 books. How many books does Titi have now?"
             ),
         ),
         Exemplar(
             question=(
-                "Mo ti ka oju-iwe 30 ninu iwe ti o ni oju-iwe 250. "
-                "Mo ni lati ka oju-iwe melo ni iyoku lati pari iwe naa?"
+                "Kọ̀mpútà mẹ́sàn-án (9) wà ní yàrá kan. Wọ́n fi kọ̀mpútà márùn-ún (5) kun un "
+                "lojoojúmọ́ láti Ọjọ́ Ajé sí Ọjọ́ Ẹtì. Kọ̀mpútà mélòó ni yàrá náà ní ní Ọjọ́ Ẹtì?"
             ),
             choices=None,
             reasoning_en=(
-                "Total pages = 250. Pages read = 30. "
-                "Remaining pages = Total pages - Pages read = 250 - 30 = 220."
+                "First translate the time span: Monday through Friday is 5 days. "
+                "Each day adds 5 computers, so added computers = 5 * 5 = 25. "
+                "Total computers = 9 + 25 = 34."
             ),
             reasoning_yo=(
-                "Àpapọ̀ ojú-ìwé = 250. Ojú-ìwé tí a ti kà = 30. "
-                "Ojú-ìwé tó kù = Àpapọ̀ - Èyí tí a ti kà = 250 - 30 = 220."
+                "Kọ́kọ́ túmọ̀ àsìkò náà: láti Ọjọ́ Ajé sí Ọjọ́ Ẹtì jẹ́ ọjọ́ 5. "
+                "Wọ́n fi kọ̀mpútà 5 kun un lojoojúmọ́, nítorí náà èyí tí a fi kun = 5 × 5 = 25. "
+                "Àpapọ̀ kọ̀mpútà = 9 + 25 = 34."
             ),
-            answer="220",
+            answer="34",
             translated_question=(
-                "I have read 30 pages of a book that has 250 pages. "
-                "How many pages do I still need to read to finish the book?"
+                "There are 9 computers in a room. They add 5 computers every day "
+                "from Monday through Friday. How many computers are in the room on Friday?"
             ),
         ),
         Exemplar(
             question=(
-                "Ọkọ̀ kan gbe àwọn apoti 50. Àpoti kọọkan wọn 8 kilo. "
-                "Ọkọ̀ naa yọ apoti 20 silẹ ni ibudo akọkọ. "
-                "Kí ni ìwọ̀n tí ó ṣẹ́kù lórí ọkọ̀ naa ni kilo?"
+                "Bọ́lá ní ṣokolétì mejilelọgbọn (32), arábìnrin rẹ̀ sì ní mejilelogoji (42). "
+                "Tí wọ́n bá jẹ márundinlogoji (45), ṣokolétì mélòó ni yóò kù?"
             ),
             choices=None,
             reasoning_en=(
-                "Initial weight = 50 boxes * 8 kg = 400 kg. "
-                "Weight removed at first stop = 20 boxes * 8 kg = 160 kg. "
-                "Remaining weight = 400 - 160 = 240 kg."
+                "First combine both amounts: 32 + 42 = 74 chocolates. "
+                "They eat 45 chocolates. Remaining chocolates = 74 - 45 = 29."
             ),
             reasoning_yo=(
-                "Ìwọ̀n àkọ́kọ́ = àpótí 50 × 8 kg = 400 kg. "
-                "Ìwọ̀n tí a yọ kúrò ní ibùdó àkọ́kọ́ = àpótí 20 × 8 kg = 160 kg. "
-                "Ìwọ̀n tó kù = 400 - 160 = 240 kg."
+                "Kọ́kọ́ ṣàpapọ̀ iye méjèèjì: 32 + 42 = 74 ṣokolétì. "
+                "Wọ́n jẹ ṣokolétì 45. Ṣokolétì tó kù = 74 - 45 = 29."
             ),
-            answer="240",
+            answer="29",
             translated_question=(
-                "A truck carries 50 boxes. Each box weighs 8 kg. "
-                "The truck drops 20 boxes at the first stop. "
-                "What weight remains on the truck in kilograms?"
+                "Bola has 32 chocolates, and her sister has 42. "
+                "If they eat 45, how many chocolates remain?"
             ),
         ),
         Exemplar(
             question=(
-                "Ade bi owo 2,500 naira lo ose. Ti o ba na 700 naira fun ounje "
-                "ati 350 naira fun ọkọ, iye owo ni o ku fun awon nkan miiran?"
+                "Adé ní náírà ẹgbẹ̀rún méjì ó lé irinwó (2,400). Ó ná náírà ẹgbẹ̀ta (600) "
+                "lórí ìwé. Ó pín owó tó kù sí ọ̀sẹ̀ mẹ́ta (3). Náírà mélòó ni yóò lò ní ọ̀sẹ̀ kọ̀ọ̀kan?"
             ),
             choices=None,
             reasoning_en=(
-                "Total allowance = 2500. Total spent on food and transport = 700 + 350 = 1050. "
-                "Remaining money = Total - Spent = 2500 - 1050 = 1450."
+                "First subtract the amount spent: 2400 - 600 = 1800 naira remains. "
+                "Then divide the remaining money equally across 3 weeks: 1800 / 3 = 600. "
+                "So he can use 600 naira each week."
             ),
             reasoning_yo=(
-                "Àpapọ̀ owó = 2500. Owó tí a ná lórí oúnjẹ àti ọkọ̀ = 700 + 350 = 1050. "
-                "Owó tó kù = Àpapọ̀ - Èyí tí a ná = 2500 - 1050 = 1450."
+                "Kọ́kọ́ yọ owó tí ó ná kúrò: 2400 - 600 = 1800 náírà ló kù. "
+                "Lẹ́yìn náà, pín owó tó kù sí ọ̀sẹ̀ 3 dọ́gba: 1800 / 3 = 600. "
+                "Nítorí náà, ó lè lò náírà 600 ní ọ̀sẹ̀ kọ̀ọ̀kan."
             ),
-            answer="1450",
+            answer="600",
             translated_question=(
-                "Ade received 2,500 naira for the week. If he spends 700 naira on food "
-                "and 350 naira on transport, how much money remains for other things?"
+                "Ade has 2,400 naira. He spends 600 naira on books. "
+                "He divides the remaining money across 3 weeks. "
+                "How many naira can he use each week?"
             ),
         ),
     ],
@@ -526,12 +529,39 @@ def render_exemplar_block(task: str, *, reasoning_mode: str) -> str:
 
     return "\n\n---\n\n".join(blocks) + "\n\n"
 
-COMMON_SYSTEM_PROMPT = (
-    "You are a careful reasoning assistant.\n\n"
-    "Solve the user's problem accurately.\n"
-    "Return your response using the same format as the examples.\n"
-    "Return the final answer in the requested format."
-)
+def is_english_input(example: InferenceExample) -> bool:
+    """True for translated benchmark variants whose questions are already English."""
+
+    return example.source_dataset.endswith("_translate")
+
+
+def common_system_prompt(example: InferenceExample) -> str:
+    if is_english_input(example):
+        return (
+            "You are a careful reasoning assistant.\n\n"
+            "Read the problem carefully, preserve the quantities and relationships, "
+            "and solve only from the information given."
+        )
+
+    return yoruba_system_prompt()
+
+
+def yoruba_system_prompt() -> str:
+    return (
+        "You are a careful reasoning assistant.\n\n"
+        "Read the Yoruba problem carefully, preserve the quantities and relationships, "
+        "and solve only from the information given."
+    )
+
+
+def question_label(example: InferenceExample) -> str:
+    return "Question" if is_english_input(example) else "Question (Yoruba)"
+
+
+def quantity_instruction(example: InferenceExample) -> str:
+    if is_english_input(example):
+        return "- First identify the quantities and whether they mean add, subtract, multiply, or divide."
+    return "- First identify the Yoruba quantities and whether they mean add, subtract, multiply, or divide."
 
 
 def render_english_cot_prompt(example: InferenceExample) -> PromptBundle:
@@ -544,14 +574,13 @@ def render_english_cot_prompt(example: InferenceExample) -> PromptBundle:
 
     user = "\n\n".join(
         [
-            f"{exemplar_block}{render_problem_block(example)}",
+            f"{exemplar_block}{render_problem_block(example, question_label=question_label(example))}",
             render_answer_format(example),
             (
                 "Instructions:\n"
-                "- Follow the same format as the examples.\n"
+                "- Use the examples only as formatting guides, not as source facts.\n"
+                f"{quantity_instruction(example)}\n"
                 "- Reason step by step in English.\n"
-                "- Use only the information provided in the question.\n"
-                "- Write your reasoning after 'Reasoning:'.\n"
                 "- Finish with exactly one line:\n"
                 "Final answer: <answer>"
             ),
@@ -559,7 +588,7 @@ def render_english_cot_prompt(example: InferenceExample) -> PromptBundle:
     )
 
     return PromptBundle(
-        system=COMMON_SYSTEM_PROMPT,
+        system=common_system_prompt(example),
         user=user,
     )
 
@@ -571,14 +600,13 @@ def render_yoruba_cot_prompt(example: InferenceExample) -> PromptBundle:
 
     user = "\n\n".join(
         [
-            f"{exemplar_block}{render_problem_block(example)}",
+            f"{exemplar_block}{render_problem_block(example, question_label=question_label(example))}",
             render_answer_format(example),
             (
                 "Instructions:\n"
-                "- Follow the same format as the examples.\n"
+                "- Use the examples only as formatting guides, not as source facts.\n"
+                f"{quantity_instruction(example)}\n"
                 "- Reason step by step in Yoruba.\n"
-                "- Use only the information provided in the question.\n"
-                "- Write your reasoning after 'Reasoning:'.\n"
                 "- Finish with exactly one line:\n"
                 "Final answer: <answer>"
             ),
@@ -586,7 +614,7 @@ def render_yoruba_cot_prompt(example: InferenceExample) -> PromptBundle:
     )
 
     return PromptBundle(
-        system=COMMON_SYSTEM_PROMPT,
+        system=yoruba_system_prompt(),
         user=user,
     )
 
@@ -598,14 +626,13 @@ def render_translate_pivot_prompt(example: InferenceExample) -> PromptBundle:
 
     user = "\n\n".join(
         [
-            f"{exemplar_block}{render_problem_block(example)}",
+            f"{exemplar_block}{render_problem_block(example, question_label='Question (Yoruba)')}",
             render_answer_format(example),
             (
                 "Instructions:\n"
-                "- Follow the same format as the examples.\n"
-                "- Translate the question into English.\n"
+                "- Use the examples only as formatting guides, not as source facts.\n"
+                "- Translate the Yoruba question into English.\n"
                 "- Solve the translated question by reasoning step by step in English.\n"
-                "- Write your reasoning after 'Reasoning:'.\n"
                 "- Finish with exactly one line:\n"
                 "Final answer: <answer>"
             ),
@@ -613,7 +640,7 @@ def render_translate_pivot_prompt(example: InferenceExample) -> PromptBundle:
     )
 
     return PromptBundle(
-        system=COMMON_SYSTEM_PROMPT,
+        system=yoruba_system_prompt(),
         user=user,
     )
 
