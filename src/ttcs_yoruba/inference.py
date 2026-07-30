@@ -1112,6 +1112,7 @@ def run_example_candidates(
                 "answer_type": example.answer_type,
                 "choices": example.choices,
                 "gold_answer": example.gold_answer,
+                "sample_seed": seed,
                 "backend": model.backend,
                 "backend_metadata": output.metadata,
             },
