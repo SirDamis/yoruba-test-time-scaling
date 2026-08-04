@@ -1113,6 +1113,7 @@ def run_example_candidates(
                 temperature=method.temperature,
                 max_tokens=method.max_tokens,
                 seed=seed,
+                top_p=method.top_p,
             )
         except Exception as exc:
             if not config.continue_on_error:

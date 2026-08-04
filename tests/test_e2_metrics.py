@@ -35,11 +35,13 @@ def test_e2_config_expands_n_sweep_with_greedy_n1(tmp_path: Path | None = None) 
     n1 = methods["english_cot_ttc_n1"]
     assert n1.n == 1
     assert n1.temperature == 0.0
+    assert n1.top_p is None
     assert n1.selection == "first"
     assert n1.prompt_style == "english_cot"
     n4 = methods["english_cot_ttc_n4"]
     assert n4.n == 4
     assert n4.temperature == 0.7
+    assert n4.top_p == 0.7
     assert n4.selection == "majority_vote"
 
 

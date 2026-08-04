@@ -85,6 +85,7 @@ class InferenceMethodConfig:
     n: int
     temperature: float | None = None
     max_tokens: int | None = None
+    top_p: float | None = None
     reasoning_language: str = "unknown"
     # When set, this method is part of a nested N-sweep: sample once at max N, slice for each k.
     nested_group_id: str | None = None
@@ -123,6 +124,7 @@ class InferenceMethodConfig:
             n=n,
             temperature=None if row.get("temperature") is None else float(row["temperature"]),
             max_tokens=None if row.get("max_tokens") is None else int(row["max_tokens"]),
+            top_p=None if row.get("top_p") is None else float(row["top_p"]),
             reasoning_language=str(reasoning_language),
             nested_group_id=None if nested_group_id is None else str(nested_group_id),
             nested_max_n=None if nested_max_n is None else int(nested_max_n),
@@ -177,6 +179,7 @@ def expand_method_configs(rows: list[dict[str, Any]]) -> list[InferenceMethodCon
 
     Optional keys for E2 sweeps:
     - ``temperature_n1``: temperature used when ``n == 1`` (default: keep ``temperature``)
+    - ``top_p_n1``: top-p used when ``n == 1`` (default: keep ``top_p``; unset for greedy N=1)
     - ``greedy_n1``: if true, force ``temperature=0`` and ``selection=first`` for ``n == 1``.
       With ``nested_n``, N=1 is a **separate true-greedy decode** (not first-of-pool);
       N>1 still share one stochastic pool of size max(N).
@@ -202,6 +205,7 @@ def expand_method_configs(rows: list[dict[str, Any]]) -> list[InferenceMethodCon
             concrete = dict(row)
             concrete.pop("n_values", None)
             concrete.pop("temperature_n1", None)
+            concrete.pop("top_p_n1", None)
             concrete.pop("greedy_n1", None)
             concrete.pop("nested_n", None)
             concrete.pop("nested", None)
@@ -215,12 +219,15 @@ def expand_method_configs(rows: list[dict[str, Any]]) -> list[InferenceMethodCon
             if n == 1:
                 if "temperature_n1" in row:
                     concrete["temperature"] = row["temperature_n1"]
+                if "top_p_n1" in row:
+                    concrete["top_p"] = row["top_p_n1"]
                 if bool(row.get("greedy_n1", multi)):
                     # True greedy N=1 baseline (temp 0, selection=first). With nested_n the
                     # pipeline generates this decode separately from the stochastic pool.
                     concrete["temperature"] = (
                         float(row["temperature_n1"]) if "temperature_n1" in row else 0.0
                     )
+                    concrete["top_p"] = row["top_p_n1"] if "top_p_n1" in row else None
                     concrete["selection"] = "first"
 
             methods.append(InferenceMethodConfig.from_dict(concrete))

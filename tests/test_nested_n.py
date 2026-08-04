@@ -36,6 +36,7 @@ def test_expand_sets_nested_group() -> None:
                 "n_values": [1, 4, 8],
                 "nested_n": True,
                 "temperature": 0.7,
+                "top_p": 0.7,
                 "greedy_n1": True,
             }
         ]
@@ -45,8 +46,10 @@ def test_expand_sets_nested_group() -> None:
     assert all(m.nested_max_n == 8 for m in methods)
     assert methods[0].n == 1 and methods[0].selection == "first"
     assert methods[0].temperature == 0.0
+    assert methods[0].top_p is None
     assert is_nested_greedy_n1(methods[0])
     assert methods[1].n == 4 and methods[1].selection == "majority_vote"
+    assert methods[1].top_p == 0.7
     assert not is_nested_greedy_n1(methods[1])
     greedy, pool = split_nested_group_methods(methods)
     assert [m.n for m in greedy] == [1]
@@ -62,6 +65,7 @@ def test_expand_without_nested_has_no_group() -> None:
                 "selection": "majority_vote",
                 "n_values": [1, 4],
                 "temperature": 0.7,
+                "top_p": 0.7,
             }
         ]
     )
@@ -112,6 +116,7 @@ def test_pick_sample_method_uses_pool_n() -> None:
                 "n_values": [1, 4, 8],
                 "nested_n": True,
                 "temperature": 0.7,
+                "top_p": 0.7,
                 "greedy_n1": True,
             }
         ]
@@ -120,18 +125,21 @@ def test_pick_sample_method_uses_pool_n() -> None:
     sample_m = pick_nested_sample_method(pool_methods, pool_n=8)
     assert sample_m.n == 8
     assert sample_m.temperature == 0.7
+    assert sample_m.top_p == 0.7
 
 
 class _CountingBackend:
     def __init__(self) -> None:
         self.calls = 0
         self.temperatures: list[float | None] = []
+        self.top_ps: list[float | None] = []
 
     def generate(self, **kwargs):
         from ttcs_yoruba.schema import BackendOutput
 
         self.calls += 1
         self.temperatures.append(kwargs.get("temperature"))
+        self.top_ps.append(kwargs.get("top_p"))
         # Alternate answers so majority/pass@k vary with k.
         ans = "11" if self.calls % 2 == 1 else "0"
         return BackendOutput(
@@ -171,6 +179,7 @@ def test_nested_pipeline_greedy_n1_plus_pool(monkeypatch=None) -> None:
                     "n_values": [1, 4, 8],
                     "nested_n": True,
                     "temperature": 0.7,
+                    "top_p": 0.7,
                     "greedy_n1": True,
                     "max_tokens": 64,
                 }
@@ -216,6 +225,8 @@ def test_nested_pipeline_greedy_n1_plus_pool(monkeypatch=None) -> None:
         assert manifest["counts"]["selection_rows"] == 3  # k=1,4,8
         assert backend.temperatures[0] == 0.0
         assert all(t == 0.7 for t in backend.temperatures[1:])
+        assert backend.top_ps[0] is None
+        assert all(p == 0.7 for p in backend.top_ps[1:])
         assert manifest["nested_groups"]["ttc"]["greedy_n1"] is True
         assert manifest["nested_groups"]["ttc"]["pool_n"] == 8
 
@@ -270,12 +281,14 @@ def test_nested_without_greedy_n1_uses_first_of_pool() -> None:
                     "n_values": [1, 4],
                     "nested_n": True,
                     "temperature": 0.7,
+                    "top_p": 0.7,
                     "greedy_n1": False,
                     "max_tokens": 64,
                 }
             ]
         )
         assert methods[0].temperature == 0.7
+        assert methods[0].top_p == 0.7
         assert not is_nested_greedy_n1(methods[0])
         backend = _CountingBackend()
         import ttcs_yoruba.inference as inf
@@ -313,6 +326,7 @@ def test_nested_without_greedy_n1_uses_first_of_pool() -> None:
         assert backend.calls == 4
         assert manifest["counts"]["model_generations"] == 4
         assert all(t == 0.7 for t in backend.temperatures)
+        assert all(p == 0.7 for p in backend.top_ps)
 
         candidates = [
             json.loads(line)

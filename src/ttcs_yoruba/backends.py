@@ -52,6 +52,7 @@ class InferenceBackend:
         temperature: float | None,
         max_tokens: int | None,
         seed: int | None = None,
+        top_p: float | None = None,
     ) -> BackendOutput:
         raise NotImplementedError
 
@@ -124,6 +125,7 @@ class TransformersChatBackend(InferenceBackend):
         temperature: float | None,
         max_tokens: int | None,
         seed: int | None = None,
+        top_p: float | None = None,
     ) -> BackendOutput:
         if seed is not None:
             self.torch.manual_seed(seed)
@@ -133,7 +135,7 @@ class TransformersChatBackend(InferenceBackend):
         started = time.monotonic()
         inputs = self._build_inputs(system_prompt, user_prompt)
         input_token_count = int(inputs["input_ids"].shape[-1])
-        generation_kwargs = self._generation_kwargs(temperature, max_tokens)
+        generation_kwargs = self._generation_kwargs(temperature, max_tokens, top_p=top_p)
 
         with self.torch.inference_mode():
             outputs = self.model.generate(**inputs, **generation_kwargs)
@@ -186,7 +188,7 @@ class TransformersChatBackend(InferenceBackend):
                     return self.torch.device(device)
         return getattr(self.model, "device", self.torch.device("cpu"))
 
-    def _generation_kwargs(self, temperature: float | None, max_tokens: int | None) -> dict[str, Any]:
+    def _generation_kwargs(self, temperature: float | None, max_tokens: int | None, *, top_p: float | None = None) -> dict[str, Any]:
         kwargs = {
             "max_new_tokens": max_tokens or int(self.config.backend_kwargs.get("max_new_tokens", 1024)),
             "pad_token_id": self.tokenizer.pad_token_id or self.tokenizer.eos_token_id,
@@ -196,7 +198,7 @@ class TransformersChatBackend(InferenceBackend):
         if temperature is not None and temperature > 0:
             kwargs["do_sample"] = True
             kwargs["temperature"] = temperature
-            kwargs["top_p"] = float(self.config.backend_kwargs.get("top_p", 0.95))
+            kwargs["top_p"] = top_p if top_p is not None else float(self.config.backend_kwargs.get("top_p", 0.95))
         else:
             kwargs["do_sample"] = False
         for key in ("top_k", "repetition_penalty"):
@@ -231,6 +233,7 @@ class OpenAICompatibleChatBackend(InferenceBackend):
         temperature: float | None,
         max_tokens: int | None,
         seed: int | None = None,
+        top_p: float | None = None,
     ) -> BackendOutput:
         payload: dict[str, Any] = {
             "model": self.config.model,
@@ -245,6 +248,8 @@ class OpenAICompatibleChatBackend(InferenceBackend):
             payload["max_tokens"] = max_tokens
         if seed is not None and self.config.backend_kwargs.get("send_seed", False):
             payload["seed"] = seed
+        if top_p is not None:
+            payload["top_p"] = top_p
         payload.update(dict(self.config.backend_kwargs.get("extra_body", {})))
 
         response = self._post_json(payload)
