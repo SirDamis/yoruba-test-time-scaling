@@ -9,6 +9,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from dotenv import load_dotenv
+
+load_dotenv(ROOT / ".env")
+
 from ttcs_yoruba.config import load_inference_run_config
 from ttcs_yoruba.inference import run_inference_pipeline
 

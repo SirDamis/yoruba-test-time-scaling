@@ -8,7 +8,7 @@ from collections import defaultdict
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import replace
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Mapping
 
 from .backends import build_backend
 from .config import DatasetConfig, InferenceMethodConfig, InferenceModelConfig, InferenceRunConfig
@@ -375,7 +375,7 @@ def write_unit_batch(
 def effective_max_concurrent(config: InferenceRunConfig, model: InferenceModelConfig) -> int:
     """Concurrency for this model. Transformers generate is not thread-safe → 1."""
     requested = max(1, int(config.max_concurrent))
-    if model.backend != "openai_compatible" and requested > 1:
+    if model.backend == "transformers" and requested > 1:
         return 1
     return requested
 
@@ -1126,6 +1126,7 @@ def run_example_candidates(
             )
 
         extracted = extract_answer(output.response, example.answer_type, example.choices)
+        provider_cost = _provider_cost(output.metadata)
         record = CandidateRecord(
             run_id=config.run_id,
             example_id=example.id,
@@ -1144,7 +1145,11 @@ def run_example_candidates(
             extracted_answer=extracted,
             token_count=output.token_count,
             latency_s=output.latency_s,
-            estimated_cost=(output.token_count / 1000.0) * model.cost_per_1k_tokens,
+            estimated_cost=(
+                provider_cost
+                if provider_cost is not None
+                else (output.token_count / 1000.0) * model.cost_per_1k_tokens
+            ),
             metadata={
                 "dataset": dataset.name,
                 "question": example.question,
@@ -1153,11 +1158,27 @@ def run_example_candidates(
                 "gold_answer": example.gold_answer,
                 "sample_seed": seed,
                 "backend": model.backend,
+                "cost_source": "provider_usage" if provider_cost is not None else "completion_token_estimate",
                 "backend_metadata": output.metadata,
             },
         )
         rows.append(record.to_dict())
     return rows
+
+
+def _provider_cost(metadata: Mapping[str, Any]) -> float | None:
+    """Return a non-negative provider-reported request cost when available."""
+    usage = metadata.get("usage")
+    if not isinstance(usage, Mapping):
+        return None
+    cost = usage.get("cost")
+    if isinstance(cost, bool) or cost is None:
+        return None
+    try:
+        value = float(cost)
+    except (TypeError, ValueError):
+        return None
+    return value if value >= 0 else None
 
 
 def build_selection_row(

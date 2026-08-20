@@ -105,6 +105,36 @@ uv run python scripts/run_inference.py \
 
 E1/E2 configs use **`max_tokens: 512`** (good for AfriMGSM). vLLM configs set **`max_concurrent: 8`** so the client issues multiple in-flight requests and vLLM continuous-batches them. Transformers configs stay at concurrency 1 (HF `generate` is not thread-safe) and use **`attn_implementation: auto`** (defaults to SDPA; no `flash-attn` package required).
 
+### Cloud routers (OpenRouter / Ramp Router)
+
+Both are OpenAI-compatible endpoints; no extra Python package required. The base URL and API key are read from the config (with `.env` auto-loaded by `scripts/run_inference.py` via `python-dotenv`).
+
+**OpenRouter** (`configs/e1_reasoning_language_openrouter.json`) speaks Chat Completions (`POST /chat/completions`):
+
+```bash
+export OPENROUTER_API_KEY="..."
+uv run python scripts/run_inference.py \
+  --config configs/e1_reasoning_language_openrouter.json \
+  --datasets afrimgsm \
+  --models qwen3-4b \
+  --limit 5
+```
+
+**Ramp Router** (`configs/e1_reasoning_language_ramp_router.json`) speaks the OpenAI **Responses** API (`POST /responses`, not `/chat/completions`) and is geo-restricted to the US for now. It uses the `responses_api` backend:
+
+```bash
+export ROUTER_KEY="..."   # or set ROUTER_KEY=... in .env
+uv run python scripts/run_inference.py \
+  --config configs/e1_reasoning_language_ramp_router.json \
+  --datasets afrimgsm \
+  --models deepseek-v4-flash \
+  --limit 5
+```
+
+Both configs start at `max_concurrent: 4` and retry rate limits and transient 5xx errors. Candidate records use the endpoint's returned `usage.cost` when present; `cost_per_1k_tokens` remains only a fallback for backends that do not report request cost. Keep the model ID and provider route stable throughout a run when reproducibility matters. Ramp Router model IDs are account-specific — fetch them from `GET https://api.router.com/v1/models`; do not reuse provider public names.
+
+**Model-native reasoning:** Ramp Router exposes reasoning-capable models (DeepSeek V4, GPT-5, Claude, etc.). E1 is a **prompted-CoT** experiment (`temperature: 0`), so the Ramp config disables model-native thinking via a `reasoning_effort` backend key (maps to `reasoning: {"effort": "none"}` in the Responses payload). To re-enable or tune it, change the value (e.g. `"low"`, `"medium"`, `"high"`) or omit the key.
+
 **Do not install `flash-attn` for the vLLM path.** vLLM includes its own efficient attention (FlashAttention-class kernels + PagedAttention). Compiling `flash-attn` is RAM-heavy and unused by `configs/*_vllm.json`.
 
 **L4 install (after CUDA torch + `requirements.txt`):**
@@ -258,7 +288,8 @@ Experiment configs (`e1_*`, `e2_*`) are preferred. Generic kitchen-sink configs 
 - `configs/inference.json` — Hugging Face Transformers backend  
 - `configs/*_vllm.json` — same E1/E2 experiment protocols over local vLLM (`openai_compatible`)  
 - `configs/e4_comparison_vllm.json` — E4 filters for vLLM E2 `run_id`s (offline compare only)  
-- `configs/openai_compatible_inference.json` — generic multi-model kitchen sink (not a full experiment protocol)  
+- `configs/openai_compatible_inference.json` — generic multi-model kitchen sink (not a full experiment protocol)
+- `configs/e1_reasoning_language_ramp_router.json` — E1 over Ramp Router via the OpenAI Responses API (`responses_api` backend)  
 
 ```bash
 # Common flags

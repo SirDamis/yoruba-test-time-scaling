@@ -1,0 +1,143 @@
+{
+  "run_id": "e1_reasoning_language_openrouter",
+  "output_dir": "runs",
+  "seed": 20260708,
+  "default_request_timeout_s": 180,
+  "continue_on_error": false,
+  "max_concurrent": 4,
+  "datasets": [
+    {
+      "name": "afrimgsm",
+      "path": "data/normalized/math-reasoning/afrimgsm/all.jsonl",
+      "task": "math",
+      "source_dataset": "afrimgsm"
+    },
+    {
+      "name": "afrimgsm_translate",
+      "path": "data/normalized/math-reasoning/afrimgsm_translate/all.jsonl",
+      "task": "math",
+      "source_dataset": "afrimgsm_translate"
+    },
+    {
+      "name": "afrimmlu",
+      "path": "data/normalized/question-answering/afrimmlu/all.jsonl",
+      "task": "qa",
+      "source_dataset": "afrimmlu"
+    },
+    {
+      "name": "afriqa",
+      "path": "data/normalized/question-answering/afriqa/all.jsonl",
+      "task": "qa",
+      "source_dataset": "afriqa"
+    },
+    {
+      "name": "naijarc",
+      "path": "data/normalized/question-answering/naijarc/all.jsonl",
+      "task": "reading_comprehension",
+      "source_dataset": "naijarc"
+    }
+  ],
+  "models": [
+    {
+      "name": "qwen3-4b",
+      "backend": "openai_compatible",
+      "model": "qwen/qwen3-4b",
+      "size_label": "4B",
+      "cost_per_1k_tokens": 0.0,
+      "base_url": "https://openrouter.ai/api/v1",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "backend_kwargs": {
+        "send_seed": true,
+        "max_retries": 3,
+        "retry_initial_backoff_s": 1.0,
+        "retry_max_backoff_s": 30.0,
+        "headers": {
+          "X-OpenRouter-Title": "Yoruba TTCS"
+        }
+      }
+    },
+    {
+      "name": "gemma3-4b",
+      "backend": "openai_compatible",
+      "model": "google/gemma-3-4b-it",
+      "size_label": "4B",
+      "cost_per_1k_tokens": 0.0,
+      "base_url": "https://openrouter.ai/api/v1",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "backend_kwargs": {
+        "send_seed": true,
+        "max_retries": 3,
+        "retry_initial_backoff_s": 1.0,
+        "retry_max_backoff_s": 30.0,
+        "headers": {
+          "X-OpenRouter-Title": "Yoruba TTCS"
+        }
+      }
+    },
+    {
+      "name": "llama3.2-3b",
+      "backend": "openai_compatible",
+      "model": "meta-llama/llama-3.2-3b-instruct",
+      "size_label": "3B",
+      "cost_per_1k_tokens": 0.0,
+      "base_url": "https://openrouter.ai/api/v1",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "backend_kwargs": {
+        "send_seed": true,
+        "max_retries": 3,
+        "retry_initial_backoff_s": 1.0,
+        "retry_max_backoff_s": 30.0,
+        "headers": {
+          "X-OpenRouter-Title": "Yoruba TTCS"
+        }
+      }
+    },
+    {
+      "name": "deepseek-v4-flash",
+      "backend": "openai_compatible",
+      "model": "deepseek-v4-flash-0731",
+      "size_label": "248B-13B",
+      "cost_per_1k_tokens": 0.0,
+      "base_url": "https://openrouter.ai/api/v1",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "backend_kwargs": {
+        "send_seed": true,
+        "max_retries": 3,
+        "retry_initial_backoff_s": 1.0,
+        "retry_max_backoff_s": 30.0,
+        "headers": {
+          "X-OpenRouter-Title": "Yoruba TTCS"
+        }
+      }
+    }
+  ],
+  "methods": [
+    {
+      "name": "yoruba_cot",
+      "prompt_style": "yoruba_cot",
+      "selection": "first",
+      "n": 1,
+      "temperature": 0.0,
+      "max_tokens": 512,
+      "reasoning_language": "yo"
+    },
+    {
+      "name": "english_cot",
+      "prompt_style": "english_cot",
+      "selection": "first",
+      "n": 1,
+      "temperature": 0.0,
+      "max_tokens": 512,
+      "reasoning_language": "en"
+    },
+    {
+      "name": "translate_pivot",
+      "prompt_style": "translate_pivot",
+      "selection": "first",
+      "n": 1,
+      "temperature": 0.0,
+      "max_tokens": 512,
+      "reasoning_language": "en_pivot"
+    }
+  ]
+}

@@ -6,6 +6,7 @@ sentencepiece>=0.2
 protobuf>=4.25
 safetensors>=0.4
 matplotlib>=3.8
+python-dotenv>=1.0
 
 # --- Local vLLM serving (install separately; not pinned to torch/CUDA matrix) ---
 #   uv pip install vllm

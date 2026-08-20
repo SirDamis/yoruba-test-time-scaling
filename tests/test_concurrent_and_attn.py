@@ -2,20 +2,43 @@
 
 from __future__ import annotations
 
+import json
 import sys
 import time
+import urllib.error
+from io import BytesIO
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from ttcs_yoruba.backends import resolve_attn_implementation
+from ttcs_yoruba.backends import (
+    BackendError,
+    OpenAICompatibleChatBackend,
+    OpenAIResponsesBackend,
+    build_backend,
+    resolve_attn_implementation,
+)
 from ttcs_yoruba.config import InferenceModelConfig, InferenceRunConfig, load_inference_run_config
 from ttcs_yoruba.inference import (
+    _provider_cost,
     effective_max_concurrent,
     run_concurrent_map,
     run_concurrent_map_tolerant,
 )
+
+
+def _openai_compatible_config(**backend_kwargs: object) -> InferenceModelConfig:
+    return InferenceModelConfig(
+        name="test-api",
+        backend="openai_compatible",
+        model="test/model",
+        size_label="test",
+        base_url="https://example.test/api/v1",
+        api_key="test-key",
+        backend_kwargs=dict(backend_kwargs),
+    )
 
 
 def test_run_concurrent_map_preserves_order() -> None:
@@ -140,6 +163,54 @@ def test_resolve_attn_auto_ada_without_flash_pkg() -> None:
     assert impl in {"flash_attention_2", "sdpa"}
 
 
+def test_openai_compatible_retries_rate_limits() -> None:
+    backend = OpenAICompatibleChatBackend(
+        _openai_compatible_config(
+            max_retries=1,
+            retry_initial_backoff_s=0,
+            retry_max_backoff_s=0,
+        )
+    )
+    calls = 0
+
+    class _Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        @staticmethod
+        def read() -> bytes:
+            return b'{"choices":[{"message":{"content":"ok"}}],"usage":{"cost":0.01}}'
+
+    def urlopen(*args: object, **kwargs: object) -> _Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise urllib.error.HTTPError(
+                "https://example.test",
+                429,
+                "rate limited",
+                {"Retry-After": "0"},
+                BytesIO(b"rate limited"),
+            )
+        return _Response()
+
+    with patch("urllib.request.urlopen", side_effect=urlopen):
+        result = backend._post_json({"model": "test/model", "messages": []})
+    assert calls == 2
+    assert result["usage"]["cost"] == 0.01
+
+
+def test_provider_cost_accepts_valid_usage_cost_only() -> None:
+    assert _provider_cost({"usage": {"cost": 0.0012}}) == 0.0012
+    assert _provider_cost({"usage": {"cost": "0.0012"}}) == 0.0012
+    assert _provider_cost({"usage": {"cost": -1}}) is None
+    assert _provider_cost({"usage": {"cost": True}}) is None
+    assert _provider_cost({}) is None
+
+
 def test_e1_vllm_config_has_concurrency_and_512() -> None:
     cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language_vllm.json")
     assert cfg.max_concurrent == 8
@@ -154,6 +225,136 @@ def test_e1_hf_config_has_auto_attn_and_512() -> None:
         assert model.backend_kwargs.get("attn_implementation") == "auto"
 
 
+def test_e1_openrouter_config_has_cost_and_retry_settings() -> None:
+    cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language_openrouter.json")
+    assert cfg.max_concurrent == 4
+    assert all(m.max_tokens == 512 for m in cfg.methods)
+    assert {m.name for m in cfg.models} == {"qwen3-4b", "gemma3-4b", "llama3.2-3b", "deepseek-v4-flash"}
+    for model in cfg.models:
+        assert model.backend == "openai_compatible"
+        assert model.base_url == "https://openrouter.ai/api/v1"
+        assert model.api_key_env == "OPENROUTER_API_KEY"
+        assert model.backend_kwargs.get("max_retries") == 3
+
+
+def test_e1_ramp_router_config_uses_responses_backend() -> None:
+    from ttcs_yoruba.inference import effective_max_concurrent
+
+    cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language_ramp_router.json")
+    assert cfg.max_concurrent == 4
+    assert all(m.max_tokens == 512 for m in cfg.methods)
+    assert {m.name for m in cfg.models} == {"qwen3-4b", "gemma3-4b", "llama3.2-3b", "deepseek-v4-flash"}
+    for model in cfg.models:
+        assert model.backend == "responses_api"
+        assert model.base_url == "https://api.router.com/v1"
+        assert model.api_key_env == "ROUTER_KEY"
+        assert model.backend_kwargs.get("reasoning_effort") == "none"
+        assert effective_max_concurrent(cfg, model) == 4
+
+
+def _responses_config(**backend_kwargs: object) -> InferenceModelConfig:
+    return InferenceModelConfig(
+        name="test-responses",
+        backend="responses_api",
+        model="test/model",
+        size_label="test",
+        base_url="https://example.test/api/v1",
+        api_key="test-key",
+        backend_kwargs=dict(backend_kwargs),
+    )
+
+
+def test_responses_payload_and_output_extraction() -> None:
+    backend = OpenAIResponsesBackend(_responses_config(send_seed=True, reasoning_effort="none"))
+
+    calls: list[dict[str, object]] = []
+
+    def capture(payload: dict[str, object]) -> dict[str, object]:
+        calls.append(payload)
+        return {
+            "id": "resp_test",
+            "status": "completed",
+            "output": [
+                {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "The answer is 42."}]}
+            ],
+            "usage": {"input_tokens": 10, "output_tokens": 7, "total_tokens": 17},
+        }
+
+    with patch.object(backend, "_post_json", side_effect=capture):
+        result = backend.generate(
+            system_prompt="sys",
+            user_prompt="user",
+            temperature=0.0,
+            max_tokens=512,
+            seed=123,
+            top_p=0.9,
+        )
+
+    assert calls[0]["model"] == "test/model"
+    assert calls[0]["instructions"] == "sys"
+    assert calls[0]["input"] == "user"
+    assert calls[0]["max_output_tokens"] == 512
+    assert calls[0]["seed"] == 123
+    assert calls[0]["reasoning"] == {"effort": "none"}
+    assert "messages" not in calls[0]
+    assert "max_tokens" not in calls[0]
+    assert result.response == "The answer is 42."
+    assert result.token_count == 7
+    assert result.metadata["status"] == "completed"
+
+
+def test_responses_extract_text_skips_reasoning_and_string_fallbacks() -> None:
+    backend = OpenAIResponsesBackend(_responses_config())
+    # reasoning-only output -> no text -> raises
+    assert (
+        backend._extract_text({"output": [{"type": "reasoning", "summary": [{"type": "summary_text", "text": "x"}]}]})
+        == ""
+    )
+    # top-level output_text fallback
+    assert backend._extract_text({"output_text": "direct text"}) == "direct text"
+    # nested message content extraction
+    body = {
+        "output": [
+            {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "a"}]},
+            {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "b"}]},
+        ]
+    }
+    assert backend._extract_text(body) == "a\nb"
+
+
+def test_responses_backend_builds() -> None:
+    backend = build_backend(_responses_config(), default_timeout_s=60)
+    assert isinstance(backend, OpenAIResponsesBackend)
+    # endpoint is /responses, not /chat/completions
+    assert backend.endpoint_path == "responses"
+    assert backend._endpoint_url() == "https://example.test/api/v1/responses"
+    chat = build_backend(_openai_compatible_config(), default_timeout_s=60)
+    assert chat._endpoint_url() == "https://example.test/api/v1/chat/completions"
+
+
+def test_responses_no_reasoning_key_when_omitted() -> None:
+    backend = OpenAIResponsesBackend(_responses_config())
+
+    captured: list[dict[str, object]] = []
+
+    def capture(payload: dict[str, object]) -> dict[str, object]:
+        captured.append(payload)
+        return {"status": "completed", "output": []}
+
+    with patch.object(backend, "_post_json", side_effect=capture):
+        try:
+            backend.generate(
+                system_prompt="",
+                user_prompt="hi",
+                temperature=None,
+                max_tokens=None,
+            )
+        except BackendError:
+            pass
+    assert captured
+    assert "reasoning" not in captured[0]
+
+
 if __name__ == "__main__":
     test_run_concurrent_map_preserves_order()
     test_run_concurrent_map_serial_when_one_worker()
@@ -162,6 +363,14 @@ if __name__ == "__main__":
     test_resolve_attn_auto_cpu_or_fallback()
     test_resolve_attn_auto_turing_like()
     test_resolve_attn_auto_ada_without_flash_pkg()
+    test_openai_compatible_retries_rate_limits()
+    test_provider_cost_accepts_valid_usage_cost_only()
     test_e1_vllm_config_has_concurrency_and_512()
     test_e1_hf_config_has_auto_attn_and_512()
+    test_e1_openrouter_config_has_cost_and_retry_settings()
+    test_e1_ramp_router_config_uses_responses_backend()
+    test_responses_payload_and_output_extraction()
+    test_responses_extract_text_skips_reasoning_and_string_fallbacks()
+    test_responses_backend_builds()
+    test_responses_no_reasoning_key_when_omitted()
     print("ok")
