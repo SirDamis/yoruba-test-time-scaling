@@ -10,6 +10,8 @@ from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
@@ -249,6 +251,8 @@ def test_e1_ramp_router_config_uses_responses_backend() -> None:
         assert model.base_url == "https://api.router.com/v1"
         assert model.api_key_env == "ROUTER_KEY"
         assert model.backend_kwargs.get("reasoning_effort") == "none"
+        assert model.backend_kwargs.get("impersonate") == "chrome"
+        assert "User-Agent" in model.backend_kwargs.get("headers", {})
         assert effective_max_concurrent(cfg, model) == 4
 
 
@@ -355,6 +359,69 @@ def test_responses_no_reasoning_key_when_omitted() -> None:
     assert "reasoning" not in captured[0]
 
 
+def test_urllib_transport_raises_transport_http_error() -> None:
+    backend = OpenAIResponsesBackend(_responses_config())
+
+    def urlopen(*args: object, **kwargs: object) -> object:
+        raise urllib.error.HTTPError(
+            "https://example.test",
+            403,
+            "forbidden",
+            {"Retry-After": "2"},
+            BytesIO(b"cloudflare 1010"),
+        )
+
+    with patch("urllib.request.urlopen", side_effect=urlopen):
+        with pytest.raises(BackendError) as excinfo:
+            backend._post_json({"model": "x"})
+    assert "HTTP 403" in str(excinfo.value)
+    assert "cloudflare 1010" in str(excinfo.value)
+
+
+def test_curl_cffi_transport_used_when_impersonate_set() -> None:
+    pytest.importorskip("curl_cffi")
+    backend = OpenAIResponsesBackend(_responses_config(impersonate="chrome"))
+    captured: dict[str, object] = {}
+
+    class _FakeResponse:
+        status_code = 200
+        text = '{"ok": true}'
+        headers = {}
+
+    def fake_post(*args: object, **kwargs: object) -> _FakeResponse:
+        captured["content"] = kwargs.get("content")
+        captured["impersonate"] = kwargs.get("impersonate")
+        return _FakeResponse()
+
+    with patch("curl_cffi.requests.post", side_effect=fake_post) as mock_post:
+        result = backend._post_json({"model": "x"})
+    assert mock_post.called
+    assert captured["impersonate"] == "chrome"
+    assert result.get("ok") is True
+    assert "_latency_s" in result
+
+
+def test_curl_cffi_transport_rejects_4xx() -> None:
+    pytest.importorskip("curl_cffi")
+    from ttcs_yoruba.backends import _TransportHTTPError
+
+    backend = OpenAIResponsesBackend(_responses_config(impersonate="chrome"))
+
+    class _FakeResponse:
+        status_code = 403
+        text = "cloudflare error code 1010"
+        headers = {}
+
+    with patch("curl_cffi.requests.post", return_value=_FakeResponse()):
+        try:
+            backend._post_json({"model": "x"})
+        except BackendError as exc:
+            assert "cloudflare error code 1010" in str(exc)
+            assert "HTTP 403" in str(exc)
+        else:
+            raise AssertionError("expected BackendError for 403")
+
+
 if __name__ == "__main__":
     test_run_concurrent_map_preserves_order()
     test_run_concurrent_map_serial_when_one_worker()
@@ -373,4 +440,7 @@ if __name__ == "__main__":
     test_responses_extract_text_skips_reasoning_and_string_fallbacks()
     test_responses_backend_builds()
     test_responses_no_reasoning_key_when_omitted()
+    test_urllib_transport_raises_transport_http_error()
+    test_curl_cffi_transport_used_when_impersonate_set()
+    test_curl_cffi_transport_rejects_4xx()
     print("ok")

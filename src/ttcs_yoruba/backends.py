@@ -18,6 +18,19 @@ class BackendError(RuntimeError):
     """Raised when a model backend cannot complete a generation request."""
 
 
+@dataclass(frozen=True)
+class _TransportHTTPError(Exception):
+    """Normalized HTTP error from any transport (urllib or curl_cffi)."""
+
+    code: int
+    error_body: str
+    retry_after_s: float | None = None
+
+
+class _TransportNetworkError(RuntimeError):
+    """Normalized network-level failure (DNS, TLS, connect, timeout)."""
+
+
 def resolve_attn_implementation(requested: Any, torch_mod: Any) -> str | None:
     """Pick an attention backend for Hugging Face Transformers.
 
@@ -257,6 +270,9 @@ class _OpenAIHTTPMixin:
             headers["Authorization"] = f"Bearer {api_key}"
 
         timeout = self.config.request_timeout_s or self.default_timeout_s
+        impersonate = self.config.backend_kwargs.get("impersonate")
+        transport = "curl_cffi" if impersonate else "urllib"
+
         max_retries = int(self.config.backend_kwargs.get("max_retries", 0))
         if max_retries < 0:
             raise BackendError("backend_kwargs.max_retries must be >= 0")
@@ -268,24 +284,19 @@ class _OpenAIHTTPMixin:
         started = time.monotonic()
         last_error: BaseException | None = None
         for attempt in range(max_retries + 1):
-            request = urllib.request.Request(
-                self._endpoint_url(),
-                data=body,
-                headers=headers,
-                method="POST",
-            )
             try:
-                with urllib.request.urlopen(request, timeout=timeout) as response:
-                    parsed = json.loads(response.read().decode("utf-8"))
+                if transport == "curl_cffi":
+                    parsed = self._post_json_curl_cffi(body, headers, timeout, impersonate)
+                else:
+                    parsed = self._post_json_urllib(body, headers, timeout)
                 parsed["_latency_s"] = time.monotonic() - started
                 return parsed
-            except urllib.error.HTTPError as exc:
+            except _TransportHTTPError as exc:
                 last_error = exc
-                error_body = exc.read().decode("utf-8", errors="replace")
-                message = f"HTTP {exc.code} from {self.config.name}: {error_body[:1000]}"
-                retry_after_s = self._retry_after_seconds(exc.headers)
+                message = f"HTTP {exc.code} from {self.config.name}: {exc.error_body[:1000]}"
+                retry_after_s = exc.retry_after_s
                 retryable = exc.code == 429 or 500 <= exc.code < 600
-            except urllib.error.URLError as exc:
+            except _TransportNetworkError as exc:
                 last_error = exc
                 message = f"Request failed for {self.config.name}: {exc}"
                 retry_after_s = None
@@ -302,11 +313,80 @@ class _OpenAIHTTPMixin:
 
         raise AssertionError("retry loop must return or raise")
 
+    def _post_json_urllib(
+        self,
+        body: bytes,
+        headers: dict[str, str],
+        timeout: float,
+    ) -> dict[str, Any]:
+        request = urllib.request.Request(
+            self._endpoint_url(),
+            data=body,
+            headers=headers,
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            raise _TransportHTTPError(
+                code=exc.code,
+                error_body=exc.read().decode("utf-8", errors="replace"),
+                retry_after_s=self._retry_after_seconds(exc.headers),
+            ) from exc
+        except urllib.error.URLError as exc:
+            raise _TransportNetworkError(str(exc)) from exc
+        except TimeoutError as exc:
+            raise _TransportNetworkError(f"timeout after {timeout}s: {exc}") from exc
+
+    def _post_json_curl_cffi(
+        self,
+        body: bytes,
+        headers: dict[str, str],
+        timeout: float,
+        impersonate: Any,
+    ) -> dict[str, Any]:
+        try:
+            from curl_cffi import requests as crequests  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise BackendError(
+                "backend_kwargs.impersonate requires curl_cffi. "
+                "Install with: uv pip install curl_cffi"
+            ) from exc
+
+        try:
+            response = crequests.post(
+                self._endpoint_url(),
+                content=body,
+                headers=headers,
+                timeout=timeout,
+                impersonate=str(impersonate),
+            )
+        except Exception as exc:
+            # Network-level failures (DNS, TLS, connect, timeout).
+            raise _TransportNetworkError(str(exc)) from exc
+
+        if response.status_code >= 400:
+            raise _TransportHTTPError(
+                code=response.status_code,
+                error_body=str(response.text or "")[:1000],
+                retry_after_s=self._retry_after_seconds(
+                    getattr(response, "headers", None) or {}
+                ),
+            )
+        try:
+            return json.loads(response.text)
+        except (TypeError, ValueError) as exc:
+            raise _TransportNetworkError(f"non-JSON response: {str(response.text or '')[:200]}") from exc
+
     @staticmethod
     def _retry_after_seconds(headers: Any) -> float | None:
         if headers is None:
             return None
-        value = headers.get("Retry-After")
+        try:
+            value = headers.get("Retry-After")
+        except AttributeError:
+            return None
         if value is None:
             return None
         try:

@@ -52,9 +52,11 @@
         "retry_initial_backoff_s": 1.0,
         "retry_max_backoff_s": 30.0,
         "headers": {
-          "X-Request-Id": "yoruba-ttcs"
+          "X-Request-Id": "yoruba-ttcs",
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
         },
-        "reasoning_effort": "none"
+        "reasoning_effort": "none",
+        "impersonate": "chrome"
       }
     },
     {
@@ -71,9 +73,11 @@
         "retry_initial_backoff_s": 1.0,
         "retry_max_backoff_s": 30.0,
         "headers": {
-          "X-Request-Id": "yoruba-ttcs"
+          "X-Request-Id": "yoruba-ttcs",
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
         },
-        "reasoning_effort": "none"
+        "reasoning_effort": "none",
+        "impersonate": "chrome"
       }
     },
     {
@@ -90,9 +94,11 @@
         "retry_initial_backoff_s": 1.0,
         "retry_max_backoff_s": 30.0,
         "headers": {
-          "X-Request-Id": "yoruba-ttcs"
+          "X-Request-Id": "yoruba-ttcs",
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
         },
-        "reasoning_effort": "none"
+        "reasoning_effort": "none",
+        "impersonate": "chrome"
       }
     },
     {
@@ -109,9 +115,11 @@
         "retry_initial_backoff_s": 1.0,
         "retry_max_backoff_s": 30.0,
         "headers": {
-          "X-Request-Id": "yoruba-ttcs"
+          "X-Request-Id": "yoruba-ttcs",
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
         },
-        "reasoning_effort": "none"
+        "reasoning_effort": "none",
+        "impersonate": "chrome"
       }
     }
   ],

@@ -135,6 +135,8 @@ Both configs start at `max_concurrent: 4` and retry rate limits and transient 5x
 
 **Model-native reasoning:** Ramp Router exposes reasoning-capable models (DeepSeek V4, GPT-5, Claude, etc.). E1 is a **prompted-CoT** experiment (`temperature: 0`), so the Ramp config disables model-native thinking via a `reasoning_effort` backend key (maps to `reasoning: {"effort": "none"}` in the Responses payload). To re-enable or tune it, change the value (e.g. `"low"`, `"medium"`, `"high"`) or omit the key.
 
+**Cloudflare Browser Integrity Check:** `api.router.com` sits behind Cloudflare and rejects the stdlib `urllib` TLS fingerprint with `403 error code: 1010`. The Ramp config therefore sets `backend_kwargs.impersonate: "chrome"` (plus a browser `User-Agent` header), which switches the client over to `curl_cffi` for Chrome-like TLS/HTTP2 impersonation. Requires `curl-cffi` (already in `requirements.txt`); omit the key to use the stdlib transport.
+
 **Do not install `flash-attn` for the vLLM path.** vLLM includes its own efficient attention (FlashAttention-class kernels + PagedAttention). Compiling `flash-attn` is RAM-heavy and unused by `configs/*_vllm.json`.
 
 **L4 install (after CUDA torch + `requirements.txt`):**
