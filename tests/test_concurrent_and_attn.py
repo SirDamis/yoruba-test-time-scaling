@@ -213,18 +213,42 @@ def test_provider_cost_accepts_valid_usage_cost_only() -> None:
     assert _provider_cost({}) is None
 
 
-def test_e1_vllm_config_has_concurrency_and_512() -> None:
+def _assert_experiment_scope(cfg: object) -> None:
+    """E1/E2 target the Yoruba AfriMGSM + AfriMMLU **test** splits, plus the
+    English-input *_translate test splits used for baseline eval."""
+    datasets = {d.name: d for d in cfg.datasets}  # type: ignore[attr-defined]
+    assert set(datasets) == {
+        "afrimgsm",
+        "afrimgsm_translate",
+        "afrimmlu",
+        "afrimmlu_translate",
+    }
+    assert str(datasets["afrimgsm"].path).endswith("afrimgsm/test.jsonl")
+    assert str(datasets["afrimgsm_translate"].path).endswith("afrimgsm_translate/test.jsonl")
+    assert str(datasets["afrimmlu"].path).endswith("afrimmlu/test.jsonl")
+    assert str(datasets["afrimmlu_translate"].path).endswith("afrimmlu_translate/test.jsonl")
+
+
+def test_e1_vllm_config_has_concurrency_and_1024() -> None:
     cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language_vllm.json")
     assert cfg.max_concurrent == 8
-    assert all(m.max_tokens == 512 for m in cfg.methods)
+    assert all(m.max_tokens == 1024 for m in cfg.methods)
+    _assert_experiment_scope(cfg)
 
 
-def test_e1_hf_config_has_auto_attn_and_512() -> None:
+def test_e1_hf_config_has_auto_attn_and_1024() -> None:
     cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language.json")
     assert cfg.max_concurrent == 1
-    assert all(m.max_tokens == 512 for m in cfg.methods)
+    assert all(m.max_tokens == 1024 for m in cfg.methods)
     for model in cfg.models:
         assert model.backend_kwargs.get("attn_implementation") == "auto"
+    _assert_experiment_scope(cfg)
+
+
+def test_e2_configs_target_test_splits_only() -> None:
+    for name in ("e2_ttc_scaling.json", "e2_ttc_scaling_vllm.json"):
+        cfg = load_inference_run_config(ROOT / "configs" / name)
+        _assert_experiment_scope(cfg)
 
 
 def test_e1_openrouter_config_has_cost_and_retry_settings() -> None:
@@ -432,8 +456,9 @@ if __name__ == "__main__":
     test_resolve_attn_auto_ada_without_flash_pkg()
     test_openai_compatible_retries_rate_limits()
     test_provider_cost_accepts_valid_usage_cost_only()
-    test_e1_vllm_config_has_concurrency_and_512()
-    test_e1_hf_config_has_auto_attn_and_512()
+    test_e1_vllm_config_has_concurrency_and_1024()
+    test_e1_hf_config_has_auto_attn_and_1024()
+    test_e2_configs_target_test_splits_only()
     test_e1_openrouter_config_has_cost_and_retry_settings()
     test_e1_ramp_router_config_uses_responses_backend()
     test_responses_payload_and_output_extraction()

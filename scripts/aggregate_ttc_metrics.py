@@ -76,16 +76,19 @@ def print_table(metrics) -> None:
         "N",
         "Acc",
         "pass@N",
+        "Trunc%",
         "Tokens",
         "Tok/ex",
         "Lat/ex(s)",
     ]
-    widths = [12, 16, 22, 4, 7, 7, 8, 8, 9]
+    widths = [12, 16, 22, 4, 7, 7, 7, 8, 8, 9]
     sep = "  "
     header_line = sep.join(h.ljust(w) for h, w in zip(headers, widths))
     print("\n" + header_line)
     print("-" * len(header_line))
     for m in metrics:
+        trunc = m.truncation_rate
+        trunc_s = "—" if trunc is None else f"{trunc:.1%}"
         row = [
             m.dataset[: widths[0]].ljust(widths[0]),
             m.model[: widths[1]].ljust(widths[1]),
@@ -93,9 +96,10 @@ def print_table(metrics) -> None:
             str(m.n).rjust(widths[3]),
             f"{m.accuracy:.1%}".rjust(widths[4]),
             f"{m.pass_at_n_rate:.1%}".rjust(widths[5]),
-            str(m.total_tokens).rjust(widths[6]),
-            f"{m.mean_tokens_per_example:.1f}".rjust(widths[7]),
-            f"{m.mean_latency_s_per_example:.2f}".rjust(widths[8]),
+            trunc_s.rjust(widths[6]),
+            str(m.total_tokens).rjust(widths[7]),
+            f"{m.mean_tokens_per_example:.1f}".rjust(widths[8]),
+            f"{m.mean_latency_s_per_example:.2f}".rjust(widths[9]),
         ]
         print(sep.join(row))
 

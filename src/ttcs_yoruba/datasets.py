@@ -52,7 +52,9 @@ HF_DATASET_REGISTRY: dict[str, HFDatasetSpec] = {
         hf_id="masakhane/afrimmlu",
         config="yor",
         group="question-answering",
-        default_splits=("validation", "dev", "test"),
+        # Test-only by default: merging validation/dev/test into all.jsonl risks
+        # duplicate items (val/dev overlap) and mixes splits into evaluation.
+        default_splits=("test",),
         data_files={
             "validation": "https://huggingface.co/datasets/masakhane/afrimmlu/resolve/main/data/yor/val.tsv",
             "dev": "https://huggingface.co/datasets/masakhane/afrimmlu/resolve/main/data/yor/dev.tsv",
@@ -99,9 +101,9 @@ HF_DATASET_REGISTRY: dict[str, HFDatasetSpec] = {
         hf_id="masakhane/afrimgsm",
         config="yor",
         group="math-reasoning",
-        default_splits=("train", "test"),
+        default_splits=("dev", "test"),
         data_files={
-            "train": "https://huggingface.co/datasets/masakhane/afrimgsm/resolve/main/data/yor/dev.tsv",
+            "dev": "https://huggingface.co/datasets/masakhane/afrimgsm/resolve/main/data/yor/dev.tsv",
             "test": "https://huggingface.co/datasets/masakhane/afrimgsm/resolve/main/data/yor/test.tsv",
         },
     ),

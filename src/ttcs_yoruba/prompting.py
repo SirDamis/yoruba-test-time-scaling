@@ -25,89 +25,86 @@ TASK_EXEMPLARS: dict[str, list[Exemplar]] = {
     "math": [
         Exemplar(
             question=(
-                "Títí ní ìwé mẹ́ta (3). Ó ra àpò ìwé méjì (2) sí i. "
-                "Àpò kọ̀ọ̀kan ní ìwé mẹ́rin (4). Ìwé mélòó ni Títí ní báyìí?"
+                "Ìyá Nílà ní ẹyìn 15. Ó pín wọn fún ọmọ rẹ̀ márùn-ún (5) "
+                "láti ọwọ́ kọ̀ọ̀kan dọ́gba. Ẹyìn mélòó ni ọmọ kọ̀ọ̀kan gba?"
             ),
             choices=None,
             reasoning_en=(
-                "First translate the quantities: Titi starts with 3 books. "
-                "She buys 2 more packs, and each pack has 4 books, so the new books are 2 * 4 = 8. "
-                "Total books = 3 + 8 = 11."
+                "First translate the quantities: total mangoes = 15, children = 5. "
+                "Shared equally: 15 / 5 = 3. Each child gets 3 mangoes."
             ),
             reasoning_yo=(
-                "Kọ́kọ́ túmọ̀ iye náà: Títí bẹ̀rẹ̀ pẹ̀lú ìwé 3. "
-                "Ó ra àpò ìwé 2 sí i, àpò kọ̀ọ̀kan sì ní ìwé 4, nítorí náà ìwé tuntun = 2 × 4 = 8. "
-                "Àpapọ̀ ìwé = 3 + 8 = 11."
+                "Kọ́kọ́ túmọ̀ iye náà: ẹyìn àpapọ̀ = 15, ọmọ = 5. "
+                "Pínpín dọ́gba: 15 / 5 = 3. Ọmọ kọ̀ọ̀kan gba ẹyìn 3."
             ),
-            answer="11",
+            answer="3",
             translated_question=(
-                "Titi has 3 books. She buys 2 more packs of books. "
-                "Each pack has 4 books. How many books does Titi have now?"
+                "Mama Nila has 15 mangoes. She shares them equally among "
+                "her 5 children. How many mangoes does each child get?"
             ),
         ),
         Exemplar(
             question=(
-                "Kọ̀mpútà mẹ́sàn-án (9) wà ní yàrá kan. Wọ́n fi kọ̀mpútà márùn-ún (5) kun un "
-                "lojoojúmọ́ láti Ọjọ́ Ajé sí Ọjọ́ Ẹtì. Kọ̀mpútà mélòó ni yàrá náà ní ní Ọjọ́ Ẹtì?"
+                "Agbẹ̀ kan gbín àpá 4 ti àlùbósà. Àpá kọ̀ọ̀kan ní "
+                "àlùbósà 12. Àlùbósà mélòó ni ó gbín gbogbo?"
             ),
             choices=None,
             reasoning_en=(
-                "First translate the time span: Monday through Friday is 5 days. "
-                "Each day adds 5 computers, so added computers = 5 * 5 = 25. "
-                "Total computers = 9 + 25 = 34."
+                "First translate the quantities: rows = 4, onions per row = 12. "
+                "Total onions = 4 * 12 = 48."
             ),
             reasoning_yo=(
-                "Kọ́kọ́ túmọ̀ àsìkò náà: láti Ọjọ́ Ajé sí Ọjọ́ Ẹtì jẹ́ ọjọ́ 5. "
-                "Wọ́n fi kọ̀mpútà 5 kun un lojoojúmọ́, nítorí náà èyí tí a fi kun = 5 × 5 = 25. "
-                "Àpapọ̀ kọ̀mpútà = 9 + 25 = 34."
+                "Kọ́kọ́ túmọ̀ iye náà: àpá = 4, àlùbósà ní àpá kọ̀ọ̀kan = 12. "
+                "Àpapọ̀ àlùbósà = 4 × 12 = 48."
             ),
-            answer="34",
+            answer="48",
             translated_question=(
-                "There are 9 computers in a room. They add 5 computers every day "
-                "from Monday through Friday. How many computers are in the room on Friday?"
+                "A farmer planted 4 rows of onions. Each row has "
+                "12 onions. How many onions did he plant in total?"
             ),
         ),
         Exemplar(
             question=(
-                "Bọ́lá ní ṣokolétì mejilelọgbọn (32), arábìnrin rẹ̀ sì ní mejilelogoji (42). "
-                "Tí wọ́n bá jẹ márundinlogoji (45), ṣokolétì mélòó ni yóò kù?"
+                "Kúnlé máa ń fi náírà 150 sí àgbà kọ̀ọ̀kan ọ̀sẹ̀. "
+                "Lẹ́yìn ọ̀sẹ̀ 8, ó ra bátìrí tí ó tó náírà 400. "
+                "Náírà mélòó ni ó kù ní àgbà rẹ̀?"
             ),
             choices=None,
             reasoning_en=(
-                "First combine both amounts: 32 + 42 = 74 chocolates. "
-                "They eat 45 chocolates. Remaining chocolates = 74 - 45 = 29."
+                "First translate the quantities: saves 150 per week for 8 weeks, so savings = 150 * 8 = 1,200. "
+                "He spends 400 on a battery: remaining = 1,200 - 400 = 800."
             ),
             reasoning_yo=(
-                "Kọ́kọ́ ṣàpapọ̀ iye méjèèjì: 32 + 42 = 74 ṣokolétì. "
-                "Wọ́n jẹ ṣokolétì 45. Ṣokolétì tó kù = 74 - 45 = 29."
+                "Kọ́kọ́ túmọ̀ iye náà: ó pa 150 wọ kọ̀ọ̀kan ọ̀sẹ̀ fún ọ̀sẹ̀ 8, "
+                "nítorí náà àpapọ̀ = 150 × 8 = 1,200. "
+                "Ó ná 400 lórí bátìrí: èyí tó kù = 1,200 - 400 = 800."
             ),
-            answer="29",
+            answer="800",
             translated_question=(
-                "Bola has 32 chocolates, and her sister has 42. "
-                "If they eat 45, how many chocolates remain?"
+                "Kunle saves 150 naira every week. After 8 weeks, he buys "
+                "a battery costing 400 naira. How much money remains?"
             ),
         ),
         Exemplar(
             question=(
-                "Adé ní náírà ẹgbẹ̀rún méjì ó lé irinwó (2,400). Ó ná náírà ẹgbẹ̀ta (600) "
-                "lórí ìwé. Ó pín owó tó kù sí ọ̀sẹ̀ mẹ́ta (3). Náírà mélòó ni yóò lò ní ọ̀sẹ̀ kọ̀ọ̀kan?"
+                "Fúnmiláyọ̀ ra ìwé 3 ní náírà 450 fún ọ̀kọ̀ọ̀kan, "
+                "ó sì ra pẹ̄nù kan tí ó tó náírà 50. "
+                "Náírà mélòó ni ó ná lápapọ̀?"
             ),
             choices=None,
             reasoning_en=(
-                "First subtract the amount spent: 2400 - 600 = 1800 naira remains. "
-                "Then divide the remaining money equally across 3 weeks: 1800 / 3 = 600. "
-                "So he can use 600 naira each week."
+                "First translate the quantities: books cost 3 * 450 = 1,350. "
+                "Adding the pen: 1,350 + 50 = 1,400. Total spent = 1,400 naira."
             ),
             reasoning_yo=(
-                "Kọ́kọ́ yọ owó tí ó ná kúrò: 2400 - 600 = 1800 náírà ló kù. "
-                "Lẹ́yìn náà, pín owó tó kù sí ọ̀sẹ̀ 3 dọ́gba: 1800 / 3 = 600. "
-                "Nítorí náà, ó lè lò náírà 600 ní ọ̀sẹ̀ kọ̀ọ̀kan."
+                "Kọ́kọ́ túmọ̀ iye náà: iye ìwé = 3 × 450 = 1,350. "
+                "Fí iye pẹ̄nù kún un: 1,350 + 50 = 1,400. "
+                "Àpapọ̀ owó tí ó ná = 1,400."
             ),
-            answer="600",
+            answer="1400",
             translated_question=(
-                "Ade has 2,400 naira. He spends 600 naira on books. "
-                "He divides the remaining money across 3 weeks. "
-                "How many naira can he use each week?"
+                "Funmilayo bought 3 books at 450 naira each, and one pen "
+                "costing 50 naira. How much did she spend in total?"
             ),
         ),
     ],

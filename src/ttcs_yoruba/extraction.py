@@ -9,6 +9,21 @@ FINAL_ANSWER_RE = re.compile(
     r"(?im)^\s*(?:final\s+answer|answer|idahun\s+ikeyin)\s*[:\-]\s*(.+?)\s*$"
 )
 
+# Single capital letter anchored to an answer keyword ("Answer: B",
+# "the answer is B", "Option C", "Ìdáhùn ni B"). Applied to uppercased text.
+ANSWER_KEYWORD_LETTER_RE = re.compile(
+    r"(?:final\s+answer|answer|idahun|option|àṣàyàn)\D{0,10}([A-Z])\b",
+    re.IGNORECASE,
+)
+
+# Standalone single capital letters anywhere in the text.
+STANDALONE_LETTER_RE = re.compile(r"\b([A-Z])\b")
+
+# English words that are a single capital letter but never MC labels.
+NON_LABEL_SINGLE_LETTERS = {"I"}
+
+NUMBER_RE = re.compile(r"-?\d+(?:,\d{3})*(?:\.\d+)?|-?\d+(?:\.\d+)?")
+
 # Absolute tolerance for GSM-style integer/simple-decimal equality.
 _NUM_EPS = 1e-6
 
@@ -35,6 +50,15 @@ def extract_answer(response: str, answer_type: str, choices: list[str] | None = 
     return clean_answer_text(candidate)
 
 
+# Final answers are concise; longer "last lines" are reasoning prose that
+# would corrupt scoring when the model ignores the format instruction.
+MAX_FALLBACK_ANSWER_CHARS = 120
+
+
+def _plausible_answer_line(line: str) -> bool:
+    return 0 < len(line) <= MAX_FALLBACK_ANSWER_CHARS
+
+
 def find_final_answer_text(response: str) -> str:
     # Prefer content outside thinking traces (Qwen3 etc.).
     cleaned = strip_thinking_blocks(response)
@@ -45,11 +69,16 @@ def find_final_answer_text(response: str) -> str:
     matches = FINAL_ANSWER_RE.findall(response or "")
     if matches:
         return clean_answer_text(matches[-1])
-    lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
-    if lines:
-        return clean_answer_text(lines[-1])
-    lines = [line.strip() for line in (response or "").splitlines() if line.strip()]
-    return clean_answer_text(lines[-1]) if lines else ""
+    for text in (cleaned, response or ""):
+        lines = [
+            line.strip()
+            for line in text.splitlines()
+            if line.strip() and _plausible_answer_line(line.strip())
+        ]
+        if lines:
+            return clean_answer_text(lines[-1])
+    # No plausible answer line: flag as extraction failure (empty prediction).
+    return ""
 
 
 def extract_choice_answer(candidate: str, choices: list[str] | None = None) -> str:
@@ -57,9 +86,9 @@ def extract_choice_answer(candidate: str, choices: list[str] | None = None) -> s
     if not valid_labels:
         valid_labels = ["A", "B", "C", "D", "E"]
 
-    label_match = re.search(r"\b([A-Z])\b", candidate.upper())
-    if label_match and label_match.group(1) in valid_labels:
-        return label_match.group(1)
+    label = _find_choice_label(candidate, valid_labels)
+    if label:
+        return label
 
     normalized_candidate = normalize_for_match(candidate)
     for index, choice in enumerate(choices or []):
@@ -70,10 +99,37 @@ def extract_choice_answer(candidate: str, choices: list[str] | None = None) -> s
     return clean_answer_text(candidate)
 
 
+def _find_choice_label(candidate: str, valid_labels: list[str]) -> str | None:
+    """Find an option letter, preferring keyword-anchored and later matches.
+
+    Guards against misreading standalone English words ("I", sentence-initial
+    "A") as option labels: keyword-anchored letters win, otherwise the last
+    standalone letter that is a valid label and not a plain English word.
+    """
+    upper = candidate.upper()
+    valid = set(valid_labels)
+
+    for match in ANSWER_KEYWORD_LETTER_RE.finditer(candidate):
+        letter = match.group(1).upper()
+        if letter in valid:
+            return letter
+
+    letters = [
+        m.group(1)
+        for m in STANDALONE_LETTER_RE.finditer(upper)
+        if m.group(1) not in NON_LABEL_SINGLE_LETTERS
+    ]
+    for letter in reversed(letters):
+        if letter in valid:
+            return letter
+    return None
+
+
 def extract_number_answer(candidate: str) -> str:
-    match = re.search(r"-?\d+(?:,\d{3})*(?:\.\d+)?|-?\d+(?:\.\d+)?", candidate)
-    if match:
-        return match.group(0).replace(",", "")
+    matches = NUMBER_RE.findall(candidate)
+    if matches:
+        # Take the last number: lines like "5 - 2 = 3" end at the result.
+        return matches[-1].replace(",", "")
     return clean_answer_text(candidate)
 
 

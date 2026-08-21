@@ -4,9 +4,7 @@ Experiment pipeline for **When Is More Thinking Enough? Evaluation of Test-Time 
 
 **Core idea:** Can test-time compute (TTC) scaling compensate for weak low-resource language representations?
 
-Evaluation is **Yoruba-only**. English appears only as an inference intervention (English CoT, translate-to-English pivot). There are no standalone English benchmark runs.
-
-**Local vLLM (install → serve → run → evaluate):** see **[README_VLLM.md](README_VLLM.md)**.
+Evaluation is **Yoruba-only** (AfriMGSM + AfriMMLU test splits). English appears only as an intervention (English CoT, translate-to-English pivot) and via the English-input `*_translate` variants used for baseline comparison. Local vLLM setup: **[README_VLLM.md](README_VLLM.md)**.
 
 ## Research questions
 
@@ -19,282 +17,92 @@ Evaluation is **Yoruba-only**. English appears only as an inference intervention
 
 ## Datasets
 
-| Name | Task | Path |
-|------|------|------|
-| `afrimgsm` | Math | `data/normalized/math-reasoning/afrimgsm/` |
-| `afrimmlu` | QA | `data/normalized/question-answering/afrimmlu/` |
-| `afriqa` | QA | `data/normalized/question-answering/afriqa/` |
-| `naijarc` | Reading comprehension | `data/normalized/question-answering/naijarc/` |
+All runs use **test splits only** (`data/normalized/.../test.jsonl`):
 
-Normalized JSONL rows look like:
+| Name | Task | Rows | Path |
+|------|------|------|------|
+| `afrimgsm` | Math (Yoruba) | 250 | `math-reasoning/afrimgsm/test.jsonl` |
+| `afrimmlu` | QA (Yoruba) | 500 | `question-answering/afrimmlu/test.jsonl` |
+| `afrimgsm_translate` | Math (English input, baseline) | 250 | `math-reasoning/afrimgsm_translate/test.jsonl` |
+| `afrimmlu_translate` | QA (English input, baseline) | 500 | `question-answering/afrimmlu_translate/test.jsonl` |
 
-```json
-{
-  "answer_type": "choice|number|text|freeform|instruction",
-  "choices": ["A. ...", "B. ..."],
-  "gold_answer": "B",
-  "question": "Yoruba prompt"
-}
+Normalized JSONL rows: `{"answer_type": "choice|number", "choices": [...] | null, "gold_answer": "...", "question": "..."}`
+
+```bash
+uv run python scripts/download_hf_datasets.py --dataset all
 ```
-
-`choices` is `null` when the dataset is not multiple-choice.
 
 ## Setup
 
 ```bash
-uv lock
-uv venv
-uv pip install -r requirements.txt
-uv run python scripts/download_hf_datasets.py --dataset all
+uv lock && uv venv
+uv pip install -r requirements.txt   # cloud GPU image: install CUDA torch first, then vllm if needed
 ```
 
-The default downloader uses registered file URLs (no Hugging Face `datasets` package required). To force that backend:
-
-```bash
-uv run --with datasets python scripts/download_hf_datasets.py --dataset afrimgsm --backend datasets
-```
-
-Set `HF_TOKEN` when loading gated models (Llama, Gemma):
-
-```bash
-export HF_TOKEN="..."
-```
+Set `HF_TOKEN` for gated models. Qwen3 native thinking is disabled in both backends (`enable_thinking=False`) — this is a prompted-CoT experiment.
 
 ## Experiment plan
 
-Run order: **E1 → E2 → E3 → E4**. After E1, set E2 `prompt_style` to the winning strategy.
+Run order: **E1 → E2 → E3 → E4**. After E1, set the E2 config's `prompt_style` to the winning strategy.
 
-### E1 — Reasoning language
+### E1 — Reasoning language (greedy N=1)
 
-**Question:** Which strategy maximizes performance on Yoruba tasks?
-
-| Field | Value |
-|-------|--------|
-| **Config (HF Transformers)** | `configs/e1_reasoning_language.json` |
-| **Config (local vLLM)** | `configs/e1_reasoning_language_vllm.json` |
-| **Models** | `qwen3-4b`, `gemma3-4b`, `llama3.2-3b` |
-| **Methods** | `yoruba_cot`, `english_cot`, `translate_pivot` (greedy `N=1`) |
-
-| Strategy | Pipeline |
-|----------|----------|
-| **Yoruba CoT** | Yoruba question → Yoruba reasoning → Yoruba answer |
-| **English CoT** | Yoruba question → English reasoning → Yoruba answer |
-| **Translate Pivot** | Translate question → English reasoning → Yoruba answer |
+Which strategy maximizes performance: `yoruba_cot`, `english_cot`, or `translate_pivot`?
 
 ```bash
-# Full E1 (in-process Transformers)
+# HF Transformers
 uv run python scripts/run_inference.py --config configs/e1_reasoning_language.json
 
-# One dataset × one model (all 3 strategies), fresh start
-uv run python scripts/run_inference.py \
-  --config configs/e1_reasoning_language.json \
-  --datasets afrimgsm \
-  --models qwen3-4b \
-  --overwrite
+# Or local vLLM (see README_VLLM.md)
+uv run python scripts/run_inference.py --config configs/e1_reasoning_language_vllm.json
 
-# Smoke test
-uv run python scripts/run_inference.py \
-  --config configs/e1_reasoning_language.json \
-  --datasets afrimgsm \
-  --models qwen3-4b \
-  --methods english_cot \
-  --limit 5
 ```
 
-**Local vLLM (same E1 protocol, faster serving; no paid API):** start the server in one terminal, then run E1 against it.
-
-E1/E2 configs use **`max_tokens: 512`** (good for AfriMGSM). vLLM configs set **`max_concurrent: 8`** so the client issues multiple in-flight requests and vLLM continuous-batches them. Transformers configs stay at concurrency 1 (HF `generate` is not thread-safe) and use **`attn_implementation: auto`** (defaults to SDPA; no `flash-attn` package required).
-
-### Cloud routers (OpenRouter / Ramp Router)
-
-Both are OpenAI-compatible endpoints; no extra Python package required. The base URL and API key are read from the config (with `.env` auto-loaded by `scripts/run_inference.py` via `python-dotenv`).
-
-**OpenRouter** (`configs/e1_reasoning_language_openrouter.json`) speaks Chat Completions (`POST /chat/completions`):
-
-```bash
-export OPENROUTER_API_KEY="..."
-uv run python scripts/run_inference.py \
-  --config configs/e1_reasoning_language_openrouter.json \
-  --datasets afrimgsm \
-  --models qwen3-4b \
-  --limit 5
-```
-
-**Ramp Router** (`configs/e1_reasoning_language_ramp_router.json`) speaks the OpenAI **Responses** API (`POST /responses`, not `/chat/completions`) and is geo-restricted to the US for now. It uses the `responses_api` backend:
-
-```bash
-export ROUTER_KEY="..."   # or set ROUTER_KEY=... in .env
-uv run python scripts/run_inference.py \
-  --config configs/e1_reasoning_language_ramp_router.json \
-  --datasets afrimgsm \
-  --models deepseek-v4-flash \
-  --limit 5
-```
-
-Both configs start at `max_concurrent: 4` and retry rate limits and transient 5xx errors. Candidate records use the endpoint's returned `usage.cost` when present; `cost_per_1k_tokens` remains only a fallback for backends that do not report request cost. Keep the model ID and provider route stable throughout a run when reproducibility matters. Ramp Router model IDs are account-specific — fetch them from `GET https://api.router.com/v1/models`; do not reuse provider public names.
-
-**Model-native reasoning:** Ramp Router exposes reasoning-capable models (DeepSeek V4, GPT-5, Claude, etc.). E1 is a **prompted-CoT** experiment (`temperature: 0`), so the Ramp config disables model-native thinking via a `reasoning_effort` backend key (maps to `reasoning: {"effort": "none"}` in the Responses payload). To re-enable or tune it, change the value (e.g. `"low"`, `"medium"`, `"high"`) or omit the key.
-
-**Cloudflare Browser Integrity Check:** `api.router.com` sits behind Cloudflare and rejects the stdlib `urllib` TLS fingerprint with `403 error code: 1010`. The Ramp config therefore sets `backend_kwargs.impersonate: "chrome"` (plus a browser `User-Agent` header), which switches the client over to `curl_cffi` for Chrome-like TLS/HTTP2 impersonation. Requires `curl-cffi` (already in `requirements.txt`); omit the key to use the stdlib transport.
-
-**Do not install `flash-attn` for the vLLM path.** vLLM includes its own efficient attention (FlashAttention-class kernels + PagedAttention). Compiling `flash-attn` is RAM-heavy and unused by `configs/*_vllm.json`.
-
-**L4 install (after CUDA torch + `requirements.txt`):**
-
-```bash
-uv pip install vllm
-# no flash-attn
-```
-
-```bash
-# Terminal A — L4-friendly helper (or plain vllm serve)
-./scripts/serve_vllm.sh Qwen/Qwen3-4B
-# equivalent:
-# vllm serve Qwen/Qwen3-4B --host 0.0.0.0 --port 8000 --dtype auto --max-model-len 4096
-
-# Terminal B — point the client at local vLLM
-export OPENAI_COMPATIBLE_BASE_URL="http://localhost:8000/v1"
-export OPENAI_COMPATIBLE_API_KEY="EMPTY"
-
-uv run python scripts/run_inference.py \
-  --config configs/e1_reasoning_language_vllm.json \
-  --run-id e1_afrimgsm_qwen3-4b_vllm \
-  --datasets afrimgsm \
-  --models qwen3-4b \
-  --max-concurrent 8 \
-  --overwrite
-```
-
-Serve Gemma or Llama the same way (one model per vLLM process), then pass the matching `--models` name.
+Models: `qwen3-4b`, `gemma3-4b`, `llama3.2-3b`. Cloud-router variants exist (`configs/e1_reasoning_language_openrouter.json`, `configs/e1_reasoning_language_ramp_router.json`); both read their API key from env (`OPENROUTER_API_KEY` / `ROUTER_KEY`, auto-loaded from `.env`).
 
 ### E2 — TTC scaling
 
-**Question:** How does test-time compute scale on Yoruba tasks?
-
-| Field | Value |
-|-------|--------|
-| **Primary config (HF)** | `configs/e2_ttc_scaling.json` (Qwen 4B / 14B / 32B) |
-| **Primary config (vLLM)** | `configs/e2_ttc_scaling_vllm.json` |
-| **Optional families (HF)** | `configs/e2_ttc_scaling_optional.json` (Gemma, Llama) |
-| **Optional families (vLLM)** | `configs/e2_ttc_scaling_optional_vllm.json` |
-| **Method** | `english_cot_ttc` (expanded to `english_cot_ttc_n1` … `_n64`) |
-| **N** | 1, 4, 8, 16, 32, 64 with `nested_n: true` |
-| **N=1** | True greedy (`greedy_n1`, temp 0, `selection=first`) |
-| **N≥4** | One stochastic pool at max *N*; prefixes scored for each *k* |
-
-After E1, set `methods[0].prompt_style` in the E2 config to the winner (`english_cot`, `yoruba_cot`, or `translate_pivot`).
+Method `english_cot_ttc` expanded to `_n1…_n64`: N ∈ {1, 4, 8, 16, 32, 64}, `nested_n: true`.
+N=1 is a true greedy decode (temp 0, `selection=first`); N≥4 are nested prefixes of one stochastic pool sampled at max N (temp 0.7, top-p 0.7).
 
 ```bash
-# Full E2 (Qwen ladder, Transformers)
-uv run python scripts/run_inference.py --config configs/e2_ttc_scaling.json
+uv run python scripts/run_inference.py --config configs/e2_ttc_scaling.json          # Qwen 4B/14B/32B ladder
+uv run python scripts/run_inference.py --config configs/e2_ttc_scaling_vllm.json     # vLLM variant
 
-# Smoke test (filter to one expanded method name)
-uv run python scripts/run_inference.py \
-  --config configs/e2_ttc_scaling.json \
-  --datasets afrimgsm \
-  --models qwen3-4b \
-  --methods english_cot_ttc_n4 \
-  --limit 5
-
-# E2 via local vLLM (serve matching model first)
-export OPENAI_COMPATIBLE_BASE_URL="http://localhost:8000/v1"
-export OPENAI_COMPATIBLE_API_KEY="EMPTY"
-uv run python scripts/run_inference.py \
-  --config configs/e2_ttc_scaling_vllm.json \
-  --datasets afrimgsm \
-  --models qwen3-4b \
-  --overwrite
-
-# Aggregate accuracy / tokens / latency + plots
-uv run python scripts/aggregate_ttc_metrics.py --runs-dir runs
-# With a vLLM run-id:
-# uv run python scripts/aggregate_ttc_metrics.py --runs-dir runs --run-id e2_ttc_scaling_vllm
+# Aggregate accuracy / tokens / latency / truncation + plots
+uv run python scripts/aggregate_ttc_metrics.py --runs-dir runs --run-id e2_ttc_scaling
 ```
 
 Outputs under `results/ttc_scaling/`: metrics JSON/CSV, `accuracy_vs_n.png`, `accuracy_vs_tokens.png`.
 
-### E3 — Generation vs selection
+### E3 — Generation vs selection 
 
-**Question:** Is the bottleneck candidate generation or selection?
-
-Reuses E2 traces (no new generations). For each *N*:
-
-| Axis | Metric |
-|------|--------|
-| Generation quality | `pass@N` (any of *N* samples correct) |
-| Selection quality | `first`, `majority_vote` |
-
-- High `pass@N`, low select accuracy → selection bottleneck  
-- Low `pass@N` → generation bottleneck  
-
-No separate inference config — offline on whatever E2 `run_id` you produced (HF or vLLM).
+Reuses E2 traces. Per N: `pass@N` (generation ceiling) vs `first` / `majority_vote` selection.
+High pass@N + low select@N → selection bottleneck; low pass@N → generation bottleneck.
 
 ```bash
-# HF E2 traces
 uv run python scripts/reselect_candidates.py \
-  --run-id e2_ttc_scaling \
-  --strategies first,majority_vote
-
-# Local-vLLM E2 traces
-uv run python scripts/reselect_candidates.py \
-  --run-id e2_ttc_scaling_vllm \
-  --strategies first,majority_vote
+  --run-id e2_ttc_scaling --strategies first,majority_vote
 ```
 
 Writes `results/e3_reselection/<run_id>/` (`selections_*.jsonl`, `e3_report.json`).
 
-### E4 — Small model + TTC vs large greedy
+### E4 — Small model + TTC vs large greedy (offline)
 
-**Question:** Can Qwen 4B with TTC match Qwen 32B greedy (`N=1`)?
-
-| Field | Value |
-|-------|--------|
-| **Config (HF E2 traces)** | `configs/e4_comparison.json` |
-| **Config (vLLM E2 traces)** | `configs/e4_comparison_vllm.json` |
-| **Small** | `qwen3-4b` over the TTC *N* sweep |
-| **Large** | `qwen3-32b` at `N=1` |
-
-E4 only compares saved metrics/runs (no model load). Use the vLLM comparison config’s notes and the matching E2 `run_id`.
+Can Qwen 4B with TTC match Qwen 32B greedy (N=1)? Compares saved E2 metrics only — no model load.
 
 ```bash
-# From aggregated E2 metrics
-uv run python scripts/compare_e4.py \
-  --metrics-json results/ttc_scaling/metrics.json
-
-# Or from run artifacts (HF)
 uv run python scripts/compare_e4.py --runs-dir runs --run-id e2_ttc_scaling
-
-# Or from local-vLLM E2 artifacts
-uv run python scripts/compare_e4.py --runs-dir runs --run-id e2_ttc_scaling_vllm
+# or: uv run python scripts/compare_e4.py --metrics-json results/ttc_scaling/metrics.json
 ```
 
-Writes `results/e4_comparison/` (JSON, CSV table, accuracy vs *N* / tokens / latency plots).
-
-### Planned ablations
-
-Not implemented as dedicated configs yet:
-
-| Ablation | Design |
-|----------|--------|
-| Diacritics | With vs without diacritic marks under TTC |
-| Adapted model | AfriqueQwen vs same-size base Qwen |
-| Zero-shot CoT | No few-shot; vs greedy few-shot CoT |
-| Few-shot language | Yoruba exemplars vs English exemplars |
+Writes `results/e4_comparison/` (JSON, CSV table, plots).
 
 ## Inference runner
 
 Primary entrypoint: `scripts/run_inference.py`.
 
-Experiment configs (`e1_*`, `e2_*`) are preferred. Generic kitchen-sink configs also exist:
-
-- `configs/inference.json` — Hugging Face Transformers backend  
-- `configs/*_vllm.json` — same E1/E2 experiment protocols over local vLLM (`openai_compatible`)  
-- `configs/e4_comparison_vllm.json` — E4 filters for vLLM E2 `run_id`s (offline compare only)  
-- `configs/openai_compatible_inference.json` — generic multi-model kitchen sink (not a full experiment protocol)
-- `configs/e1_reasoning_language_ramp_router.json` — E1 over Ramp Router via the OpenAI Responses API (`responses_api` backend)  
-
 ```bash
-# Common flags
 uv run python scripts/run_inference.py \
   --config configs/e1_reasoning_language.json \
   --datasets afrimgsm,afrimmlu \
@@ -304,27 +112,13 @@ uv run python scripts/run_inference.py \
   --run-id my_run \
   --overwrite          # wipe prior artifacts for this run_id
 # default: --resume (skip finished units via completed_units.jsonl)
-#          --no-resume to rewrite without using the checkpoint
 ```
 
-**vLLM / OpenAI-compatible:**
-
-```bash
-export OPENAI_COMPATIBLE_BASE_URL="http://localhost:8000/v1"
-export OPENAI_COMPATIBLE_API_KEY="EMPTY"
-uv run python scripts/run_inference.py \
-  --config configs/openai_compatible_inference.json \
-  --datasets afrimgsm \
-  --models qwen3-4b \
-  --methods english_cot \
-  --limit 5
-```
-
-Each run writes under `runs/<run_id>/` (gitignored):
+Each run writes under `runs/<run_id>/`:
 
 | Artifact | Contents |
 |----------|----------|
-| `candidates.jsonl` | Every sampled candidate |
+| `candidates.jsonl` | Every sampled candidate (incl. `finish_reason`) |
 | `selections.jsonl` | One selected answer per condition × example |
 | `manifest.json` | Run metadata and counts |
 | `completed_units.jsonl` | Resume checkpoint |
@@ -332,19 +126,13 @@ Each run writes under `runs/<run_id>/` (gitignored):
 ## Evaluation
 
 ```bash
-# pass@N vs select@N for finished runs
-uv run python scripts/evaluate_runs.py
+uv run python scripts/evaluate_runs.py                 # pass@N / select@N for finished runs
 uv run python scripts/evaluate_runs.py --run-id e1_reasoning_language
-uv run python scripts/evaluate_runs.py \
-  --run-id e2_ttc_scaling \
-  --output results/aggregated.json
 ```
 
-- **pass@N** — any of *N* candidates is correct (generation ceiling)  
-- **select@N** — selected answer is correct  
-- **gap** — `pass@N − select@N`  
-
-For E2 scaling curves and E4 tables, use `aggregate_ttc_metrics.py` and `compare_e4.py` (above).
+- **pass@N** — any of *N* candidates correct (generation ceiling)
+- **select@N** — selected answer correct
+- **Trunc%** — fraction of generations that hit the token limit (in `aggregate_ttc_metrics.py`; check it before trusting scaling curves)
 
 ## Repository layout
 
@@ -353,7 +141,7 @@ configs/           Experiment and backend configs
 data/normalized/   Yoruba JSONL datasets (gitignored; download locally)
 scripts/           CLI entrypoints
 src/ttcs_yoruba/   Library code (prompting, inference, metrics, selection)
-tests/             Unit tests
+tests/             Unit tests (.venv/bin/python -m pytest tests -q)
 runs/              Inference artifacts (gitignored)
 results/           Evaluation outputs (gitignored)
 ```

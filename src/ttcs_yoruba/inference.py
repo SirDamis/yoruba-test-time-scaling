@@ -1158,6 +1158,7 @@ def run_example_candidates(
                 "gold_answer": example.gold_answer,
                 "sample_seed": seed,
                 "backend": model.backend,
+                "finish_reason": output.metadata.get("finish_reason"),
                 "cost_source": "provider_usage" if provider_cost is not None else "completion_token_estimate",
                 "backend_metadata": output.metadata,
             },

@@ -18,6 +18,31 @@ class BackendError(RuntimeError):
     """Raised when a model backend cannot complete a generation request."""
 
 
+def _completion_token_count(
+    usage: Mapping[str, Any],
+    *,
+    completion_keys: tuple[str, ...],
+    content: Any,
+) -> int:
+    """Count completion tokens without ever using prompt-inclusive totals.
+
+    Prefers provider-reported completion/output tokens; falls back to a rough
+    word estimate. ``total_tokens`` includes the prompt, so it would inflate
+    per-example token metrics and is deliberately not used as a fallback.
+    """
+    for key in completion_keys:
+        value = usage.get(key)
+        if isinstance(value, bool) or value is None:
+            continue
+        try:
+            count = int(value)
+        except (TypeError, ValueError):
+            continue
+        if count > 0:
+            return count
+    return max(1, len(str(content or "").split()))
+
+
 @dataclass(frozen=True)
 class _TransportHTTPError(Exception):
     """Normalized HTTP error from any transport (urllib or curl_cffi)."""
@@ -157,6 +182,7 @@ class TransformersChatBackend(InferenceBackend):
         generated_ids = outputs[0][input_token_count:]
         response = self.tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
         completion_tokens = int(generated_ids.numel())
+        finish_reason = self._finish_reason(generated_ids, generation_kwargs)
         return BackendOutput(
             response=response,
             token_count=completion_tokens,
@@ -164,17 +190,40 @@ class TransformersChatBackend(InferenceBackend):
             metadata={
                 "input_tokens": input_token_count,
                 "completion_tokens": completion_tokens,
+                "finish_reason": finish_reason,
                 "model_id": self.config.model,
                 "backend": "transformers",
                 "attn_implementation": self.attn_implementation,
             },
         )
 
+    def _finish_reason(self, generated_ids: Any, generation_kwargs: dict[str, Any]) -> str:
+        """Mirror OpenAI-style finish reasons so truncation is detectable downstream."""
+        if generated_ids.numel() == 0:
+            return "length"
+        max_new_tokens = int(generation_kwargs.get("max_new_tokens") or 0)
+        if max_new_tokens and generated_ids.numel() >= max_new_tokens:
+            return "length"
+        eos_ids = generation_kwargs.get("eos_token_id")
+        if eos_ids is None:
+            eos_ids = self.tokenizer.eos_token_id
+        if eos_ids is None:
+            return "stop"
+        eos_values = {int(eos_ids)} if not isinstance(eos_ids, (list, tuple)) else {int(e) for e in eos_ids}
+        return "stop" if int(generated_ids[-1]) in eos_values else "length"
+
     def _build_inputs(self, system_prompt: str, user_prompt: str) -> dict[str, Any]:
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
+        # Qwen3 defaults to native thinking mode, which burns the max_tokens
+        # budget on a <think> trace before any final answer. This is a
+        # prompted-CoT experiment: disable it to match the vLLM configs.
+        template_kwargs: dict[str, Any] = {}
+        model_id = str(self.config.model).lower()
+        if "qwen3" in model_id:
+            template_kwargs["enable_thinking"] = False
         try:
             tokenized = self.tokenizer.apply_chat_template(
                 messages,
@@ -182,6 +231,7 @@ class TransformersChatBackend(InferenceBackend):
                 add_generation_prompt=True,
                 return_tensors="pt",
                 return_dict=True,
+                **template_kwargs,
             )
         except (AttributeError, TypeError, ValueError):
             prompt = f"System:\n{system_prompt}\n\nUser:\n{user_prompt}\n\nAssistant:\n"
@@ -281,15 +331,17 @@ class _OpenAIHTTPMixin:
         if initial_backoff_s < 0 or max_backoff_s < 0:
             raise BackendError("retry backoff values must be >= 0")
 
-        started = time.monotonic()
         last_error: BaseException | None = None
         for attempt in range(max_retries + 1):
+            attempt_started = time.monotonic()
             try:
                 if transport == "curl_cffi":
                     parsed = self._post_json_curl_cffi(body, headers, timeout, impersonate)
                 else:
                     parsed = self._post_json_urllib(body, headers, timeout)
-                parsed["_latency_s"] = time.monotonic() - started
+                # Latency of the successful request only — excludes backoff
+                # sleeps from earlier failed attempts.
+                parsed["_latency_s"] = time.monotonic() - attempt_started
                 return parsed
             except _TransportHTTPError as exc:
                 last_error = exc
@@ -471,10 +523,10 @@ class OpenAICompatibleChatBackend(_OpenAIHTTPMixin, InferenceBackend):
         message = first_choice.get("message") or {}
         content = message.get("content") or first_choice.get("text") or ""
         usage = response.get("usage") or {}
-        token_count = int(
-            usage.get("completion_tokens")
-            or usage.get("total_tokens")
-            or max(1, len(str(content).split()))
+        token_count = _completion_token_count(
+            usage,
+            completion_keys=("completion_tokens",),
+            content=content,
         )
         return BackendOutput(
             response=str(content),
@@ -532,10 +584,10 @@ class OpenAIResponsesBackend(_OpenAIHTTPMixin, InferenceBackend):
         if not content:
             raise BackendError(f"Backend returned no output text for model {self.config.name}")
         usage = response.get("usage") or {}
-        token_count = int(
-            usage.get("output_tokens")
-            or usage.get("total_tokens")
-            or max(1, len(str(content).split()))
+        token_count = _completion_token_count(
+            usage,
+            completion_keys=("output_tokens",),
+            content=content,
         )
         return BackendOutput(
             response=str(content),

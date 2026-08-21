@@ -94,7 +94,11 @@ def _majority_vote(
         first_seen.setdefault(key, position)
         display_answers.setdefault(key, answer)
 
-    selected_key = min(vote_counts, key=lambda key: (-vote_counts[key], first_seen[key]))
+    # Empty answers (failed extractions) get unique __empty_* keys and must
+    # never beat real answers on tie-breaks; prefer non-empty unless all empty.
+    non_empty_keys = [key for key in vote_counts if not key.startswith("__empty_")]
+    pool = non_empty_keys or list(vote_counts)
+    selected_key = min(pool, key=lambda key: (-vote_counts[key], first_seen[key]))
     selected_row = candidates[first_seen[selected_key]]
     return SelectionResult(
         selected_sample_index=int(selected_row["sample_index"]),

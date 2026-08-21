@@ -7,33 +7,27 @@
   "datasets": [
     {
       "name": "afrimgsm",
-      "path": "data/normalized/math-reasoning/afrimgsm/all.jsonl",
+      "path": "data/normalized/math-reasoning/afrimgsm/test.jsonl",
       "task": "math",
       "source_dataset": "afrimgsm"
     },
     {
       "name": "afrimgsm_translate",
-      "path": "data/normalized/math-reasoning/afrimgsm_translate/all.jsonl",
+      "path": "data/normalized/math-reasoning/afrimgsm_translate/test.jsonl",
       "task": "math",
       "source_dataset": "afrimgsm_translate"
     },
     {
+      "name": "afrimmlu_translate",
+      "path": "data/normalized/question-answering/afrimmlu_translate/test.jsonl",
+      "task": "qa",
+      "source_dataset": "afrimmlu_translate"
+    },
+    {
       "name": "afrimmlu",
-      "path": "data/normalized/question-answering/afrimmlu/all.jsonl",
+      "path": "data/normalized/question-answering/afrimmlu/test.jsonl",
       "task": "qa",
       "source_dataset": "afrimmlu"
-    },
-    {
-      "name": "afriqa",
-      "path": "data/normalized/question-answering/afriqa/all.jsonl",
-      "task": "qa",
-      "source_dataset": "afriqa"
-    },
-    {
-      "name": "naijarc",
-      "path": "data/normalized/question-answering/naijarc/all.jsonl",
-      "task": "reading_comprehension",
-      "source_dataset": "naijarc"
     }
   ],
   "models": [

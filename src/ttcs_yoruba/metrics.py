@@ -27,6 +27,7 @@ class ConditionMetrics:
     select_correct: int = 0
     pass_at_n_correct: int = 0
     total_candidates: int = 0
+    truncated_candidates: int = 0
     total_tokens: int = 0
     total_latency_s: float = 0.0
     total_estimated_cost: float = 0.0
@@ -43,6 +44,13 @@ class ConditionMetrics:
     @property
     def gap(self) -> float:
         return self.pass_at_n_rate - self.accuracy
+
+    @property
+    def truncation_rate(self) -> float | None:
+        """Fraction of candidates that hit the token limit (finish_reason=length)."""
+        if not self.total_candidates:
+            return None
+        return self.truncated_candidates / self.total_candidates
 
     @property
     def mean_tokens_per_example(self) -> float:
@@ -75,6 +83,8 @@ class ConditionMetrics:
             "pass_at_n_rate": self.pass_at_n_rate,
             "gap": self.gap,
             "total_candidates": self.total_candidates,
+            "truncated_candidates": self.truncated_candidates,
+            "truncation_rate": self.truncation_rate,
             "total_tokens": self.total_tokens,
             "mean_tokens_per_example": self.mean_tokens_per_example,
             "total_latency_s": self.total_latency_s,
@@ -243,12 +253,16 @@ def aggregate_run_dir(run_dir: Path) -> list[ConditionMetrics]:
     latency_totals: dict[tuple[str, str, str, int], float] = defaultdict(float)
     cost_totals: dict[tuple[str, str, str, int], float] = defaultdict(float)
     candidate_counts: dict[tuple[str, str, str, int], int] = defaultdict(int)
+    truncated_counts: dict[tuple[str, str, str, int], int] = defaultdict(int)
 
     for row in candidates:
         key = condition_key_from_candidate(row)
         example_id = str(row.get("example_id", ""))
         by_condition_example[key][example_id].append(row)
         candidate_counts[key] += 1
+        row_meta = row.get("metadata") or {}
+        if str(row_meta.get("finish_reason") or "") == "length":
+            truncated_counts[key] += 1
         token_totals[key] += int(row.get("token_count") or 0)
         latency_totals[key] += float(row.get("latency_s") or 0.0)
         cost_totals[key] += float(row.get("estimated_cost") or 0.0)
@@ -325,6 +339,7 @@ def aggregate_run_dir(run_dir: Path) -> list[ConditionMetrics]:
             select_correct=select_ok,
             pass_at_n_correct=pass_correct,
             total_candidates=candidate_counts.get(key, 0),
+            truncated_candidates=truncated_counts.get(key, 0),
             total_tokens=token_totals.get(key, 0),
             total_latency_s=latency_totals.get(key, 0.0),
             total_estimated_cost=cost_totals.get(key, 0.0),
@@ -349,6 +364,7 @@ def _clone_condition_metrics(item: ConditionMetrics) -> ConditionMetrics:
         select_correct=item.select_correct,
         pass_at_n_correct=item.pass_at_n_correct,
         total_candidates=item.total_candidates,
+        truncated_candidates=item.truncated_candidates,
         total_tokens=item.total_tokens,
         total_latency_s=item.total_latency_s,
         total_estimated_cost=item.total_estimated_cost,
@@ -372,6 +388,7 @@ def _add_into(acc: ConditionMetrics, item: ConditionMetrics) -> None:
     acc.select_correct += item.select_correct
     acc.pass_at_n_correct += item.pass_at_n_correct
     acc.total_candidates += item.total_candidates
+    acc.truncated_candidates += item.truncated_candidates
     acc.total_tokens += item.total_tokens
     acc.total_latency_s += item.total_latency_s
     acc.total_estimated_cost += item.total_estimated_cost
