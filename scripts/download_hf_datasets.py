@@ -7,7 +7,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from ttcs_yoruba.datasets import HF_DATASET_REGISTRY, download_yoruba_hf_dataset
+from ttcs_yoruba.datasets import (
+    ALL_LANGUAGE_CODES,
+    available_dataset_keys,
+    download_yoruba_hf_dataset,
+)
 
 
 def parse_splits(value: str | None) -> list[str] | None:
@@ -16,16 +20,37 @@ def parse_splits(value: str | None) -> list[str] | None:
     return [split.strip() for split in value.split(",") if split.strip()]
 
 
+def parse_languages(value: str | None) -> list[str]:
+    if not value or not value.strip():
+        return ["yor"]
+    langs = [item.strip().lower() for item in value.split(",") if item.strip()]
+    invalid = [lang for lang in langs if lang not in ALL_LANGUAGE_CODES]
+    if invalid:
+        raise SystemExit(
+            f"Unsupported language(s): {invalid}. Expected codes from {sorted(ALL_LANGUAGE_CODES)}"
+        )
+    return langs
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Download Hugging Face datasets and write compact Yoruba JSONL exports."
+        description="Download Hugging Face benchmarks and write compact per-language JSONL exports."
     )
     parser.add_argument(
         "--dataset",
         action="append",
-        choices=sorted(HF_DATASET_REGISTRY) + ["all"],
+        choices=available_dataset_keys() + ["all"],
         default=None,
-        help="Dataset key to download. Repeatable. Defaults to all.",
+        help="Dataset key to download (e.g. afrimgsm_yor, afrimmlu_hau). Repeatable. Defaults to all.",
+    )
+    parser.add_argument(
+        "--language",
+        default=None,
+        help=(
+            "Comma-separated language codes to download for template datasets "
+            f"(codes: {','.join(ALL_LANGUAGE_CODES)}). Default: yor. "
+            "Ignored for fully-qualified keys like afrimgsm_translate."
+        ),
     )
     parser.add_argument(
         "--output-root",
@@ -54,14 +79,24 @@ def main() -> None:
         help="Download backend. auto uses dependency-free registered URLs for the canonical datasets.",
     )
     args = parser.parse_args()
+    languages = parse_languages(args.language)
 
     selected = args.dataset or ["all"]
     if "all" in selected:
-        selected = sorted(HF_DATASET_REGISTRY)
-    if (args.hf_id or args.config) and len(selected) != 1:
+        selected = available_dataset_keys()
+
+    # Expand template keys (afrimgsm, afrimmlu) across requested languages.
+    expanded: list[str] = []
+    for key in selected:
+        if key in {"afrimgsm", "afrimmlu"}:
+            expanded.extend(f"{key}_{lang}" for lang in languages)
+        else:
+            expanded.append(key)
+
+    if (args.hf_id or args.config) and len(expanded) != 1:
         raise SystemExit("--hf-id and --config overrides can only be used with exactly one --dataset value")
 
-    for dataset_key in selected:
+    for dataset_key in expanded:
         manifest = download_yoruba_hf_dataset(
             dataset_key=dataset_key,
             output_root=args.output_root,

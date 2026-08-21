@@ -6,28 +6,76 @@
   "continue_on_error": false,
   "datasets": [
     {
-      "name": "afrimgsm",
-      "path": "data/normalized/math-reasoning/afrimgsm/test.jsonl",
+      "name": "afrimgsm_yor",
+      "path": "data/normalized/math-reasoning/afrimgsm_yor/test.jsonl",
       "task": "math",
-      "source_dataset": "afrimgsm"
+      "source_dataset": "afrimgsm_yor"
     },
     {
-      "name": "afrimgsm_translate",
-      "path": "data/normalized/math-reasoning/afrimgsm_translate/test.jsonl",
+      "name": "afrimgsm_hau",
+      "path": "data/normalized/math-reasoning/afrimgsm_hau/test.jsonl",
       "task": "math",
-      "source_dataset": "afrimgsm_translate"
+      "source_dataset": "afrimgsm_hau"
     },
     {
-      "name": "afrimmlu_translate",
-      "path": "data/normalized/question-answering/afrimmlu_translate/test.jsonl",
-      "task": "qa",
-      "source_dataset": "afrimmlu_translate"
+      "name": "afrimgsm_ibo",
+      "path": "data/normalized/math-reasoning/afrimgsm_ibo/test.jsonl",
+      "task": "math",
+      "source_dataset": "afrimgsm_ibo"
     },
     {
-      "name": "afrimmlu",
-      "path": "data/normalized/question-answering/afrimmlu/test.jsonl",
+      "name": "afrimgsm_swa",
+      "path": "data/normalized/math-reasoning/afrimgsm_swa/test.jsonl",
+      "task": "math",
+      "source_dataset": "afrimgsm_swa"
+    },
+    {
+      "name": "afrimgsm_amh",
+      "path": "data/normalized/math-reasoning/afrimgsm_amh/test.jsonl",
+      "task": "math",
+      "source_dataset": "afrimgsm_amh"
+    },
+    {
+      "name": "afrimmlu_yor",
+      "path": "data/normalized/question-answering/afrimmlu_yor/test.jsonl",
       "task": "qa",
-      "source_dataset": "afrimmlu"
+      "source_dataset": "afrimmlu_yor"
+    },
+    {
+      "name": "afrimmlu_hau",
+      "path": "data/normalized/question-answering/afrimmlu_hau/test.jsonl",
+      "task": "qa",
+      "source_dataset": "afrimmlu_hau"
+    },
+    {
+      "name": "afrimmlu_ibo",
+      "path": "data/normalized/question-answering/afrimmlu_ibo/test.jsonl",
+      "task": "qa",
+      "source_dataset": "afrimmlu_ibo"
+    },
+    {
+      "name": "afrimmlu_swa",
+      "path": "data/normalized/question-answering/afrimmlu_swa/test.jsonl",
+      "task": "qa",
+      "source_dataset": "afrimmlu_swa"
+    },
+    {
+      "name": "afrimmlu_amh",
+      "path": "data/normalized/question-answering/afrimmlu_amh/test.jsonl",
+      "task": "qa",
+      "source_dataset": "afrimmlu_amh"
+    },
+    {
+      "name": "afrimgsm_eng",
+      "path": "data/normalized/math-reasoning/afrimgsm_eng/test.jsonl",
+      "task": "math",
+      "source_dataset": "afrimgsm_eng"
+    },
+    {
+      "name": "afrimmlu_eng",
+      "path": "data/normalized/question-answering/afrimmlu_eng/test.jsonl",
+      "task": "qa",
+      "source_dataset": "afrimmlu_eng"
     }
   ],
   "models": [

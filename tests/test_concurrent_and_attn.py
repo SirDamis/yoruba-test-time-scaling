@@ -214,19 +214,15 @@ def test_provider_cost_accepts_valid_usage_cost_only() -> None:
 
 
 def _assert_experiment_scope(cfg: object) -> None:
-    """E1/E2 target the Yoruba AfriMGSM + AfriMMLU **test** splits, plus the
-    English-input *_translate test splits used for baseline eval."""
+    """E1/E2 target the 5 experiment languages + native English baselines, test splits only."""
     datasets = {d.name: d for d in cfg.datasets}  # type: ignore[attr-defined]
-    assert set(datasets) == {
-        "afrimgsm",
-        "afrimgsm_translate",
-        "afrimmlu",
-        "afrimmlu_translate",
-    }
-    assert str(datasets["afrimgsm"].path).endswith("afrimgsm/test.jsonl")
-    assert str(datasets["afrimgsm_translate"].path).endswith("afrimgsm_translate/test.jsonl")
-    assert str(datasets["afrimmlu"].path).endswith("afrimmlu/test.jsonl")
-    assert str(datasets["afrimmlu_translate"].path).endswith("afrimmlu_translate/test.jsonl")
+    expected = set()
+    for base in ("afrimgsm", "afrimmlu"):
+        for lang in ("yor", "hau", "ibo", "swa", "amh", "eng"):
+            expected.add(f"{base}_{lang}")
+    assert set(datasets) == expected
+    for name, d in datasets.items():
+        assert str(d.path).endswith(f"{name}/test.jsonl"), name
 
 
 def test_e1_vllm_config_has_concurrency_and_1024() -> None:
@@ -254,7 +250,7 @@ def test_e2_configs_target_test_splits_only() -> None:
 def test_e1_openrouter_config_has_cost_and_retry_settings() -> None:
     cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language_openrouter.json")
     assert cfg.max_concurrent == 4
-    assert all(m.max_tokens == 512 for m in cfg.methods)
+    assert all(m.max_tokens == 1024 for m in cfg.methods)
     assert {m.name for m in cfg.models} == {"qwen3-4b", "gemma3-4b", "llama3.2-3b", "deepseek-v4-flash"}
     for model in cfg.models:
         assert model.backend == "openai_compatible"
@@ -268,7 +264,7 @@ def test_e1_ramp_router_config_uses_responses_backend() -> None:
 
     cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language_ramp_router.json")
     assert cfg.max_concurrent == 4
-    assert all(m.max_tokens == 512 for m in cfg.methods)
+    assert all(m.max_tokens == 1024 for m in cfg.methods)
     assert {m.name for m in cfg.models} == {"qwen3-4b", "gemma3-4b", "llama3.2-3b", "deepseek-v4-flash"}
     for model in cfg.models:
         assert model.backend == "responses_api"

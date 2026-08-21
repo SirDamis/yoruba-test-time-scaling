@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .datasets import ALL_LANGUAGE_CODES, language_name
+
 from .examples import InferenceExample
 
 
@@ -479,8 +481,8 @@ def render_prompt(example: InferenceExample, prompt_style: str) -> PromptBundle:
     raise ValueError(f"Unsupported prompt_style: {prompt_style!r}")
 
 
-def render_exemplar_block(task: str, *, reasoning_mode: str) -> str:
-    """Render few-shot demonstrations."""
+def render_exemplar_block(task: str | None, *, reasoning_mode: str) -> str:
+    """Render few-shot demonstrations. ``None`` or unknown tasks → empty (zero-shot)."""
 
     exemplars = TASK_EXEMPLARS.get(task)
     if not exemplars:
@@ -527,9 +529,25 @@ def render_exemplar_block(task: str, *, reasoning_mode: str) -> str:
     return "\n\n---\n\n".join(blocks) + "\n\n"
 
 def is_english_input(example: InferenceExample) -> bool:
-    """True for translated benchmark variants whose questions are already English."""
+    """True for English-question variants (``*_translate`` and native ``*_eng``)."""
 
-    return example.source_dataset.endswith("_translate")
+    return example_language(example) == "eng"
+
+
+def example_language(example: InferenceExample) -> str:
+    """Language code of the question, inferred from the dataset key.
+
+    ``afrimgsm_hau`` → ``hau``; legacy bare keys (``afrimgsm``) and the
+    ``*_translate`` English-input variants map to Yoruba / English.
+    """
+    source = example.source_dataset
+    if source.endswith("_translate"):
+        return "eng"
+    if "_" in source:
+        suffix = source.rpartition("_")[2]
+        if suffix in ALL_LANGUAGE_CODES:
+            return suffix
+    return "yor"
 
 
 def common_system_prompt(example: InferenceExample) -> str:
@@ -540,30 +558,53 @@ def common_system_prompt(example: InferenceExample) -> str:
             "and solve only from the information given."
         )
 
-    return yoruba_system_prompt()
+    return native_system_prompt(example_language(example))
 
 
-def yoruba_system_prompt() -> str:
+def native_system_prompt(lang: str) -> str:
+    name = language_name(lang)
     return (
         "You are a careful reasoning assistant.\n\n"
-        "Read the Yoruba problem carefully, preserve the quantities and relationships, "
+        f"Read the {name} problem carefully, preserve the quantities and relationships, "
         "and solve only from the information given."
     )
 
 
+# Backward-compatible alias.
+def yoruba_system_prompt() -> str:
+    return native_system_prompt("yor")
+
+
 def question_label(example: InferenceExample) -> str:
-    return "Question" if is_english_input(example) else "Question (Yoruba)"
+    if is_english_input(example):
+        return "Question"
+    return f"Question ({language_name(example_language(example))})"
 
 
 def quantity_instruction(example: InferenceExample) -> str:
     if is_english_input(example):
         return "- First identify the quantities and whether they mean add, subtract, multiply, or divide."
-    return "- First identify the Yoruba quantities and whether they mean add, subtract, multiply, or divide."
+    name = language_name(example_language(example))
+    return f"- First identify the {name} quantities and whether they mean add, subtract, multiply, or divide."
+
+
+def exemplar_task_for(example: InferenceExample, prompt_style: str) -> str | None:
+    """Pick the exemplar set for this example × strategy.
+
+    - ``english_cot``: language-matched (Yoruba-question + English-reasoning)
+      exemplars for Yoruba inputs; English-question exemplars otherwise.
+    - Native CoT and translate pivot have hand-written Yoruba exemplars only;
+      other languages run zero-shot (empty exemplar block).
+    """
+    base = "math" if example.task == "math" else "qa"
+    lang = example_language(example)
+    if prompt_style == "english_cot":
+        return base if lang == "yor" else f"{base}_en"
+    return base if lang == "yor" else None
 
 
 def render_english_cot_prompt(example: InferenceExample) -> PromptBundle:
-    task_map = {"afrimgsm_translate": "math_en", "afrimmlu_translate": "qa_en"}
-    task_for_exemplars = task_map.get(example.source_dataset, example.task)
+    task_for_exemplars = exemplar_task_for(example, "english_cot")
     exemplar_block = render_exemplar_block(
         task_for_exemplars,
         reasoning_mode="en",
@@ -590,8 +631,15 @@ def render_english_cot_prompt(example: InferenceExample) -> PromptBundle:
     )
 
 def render_yoruba_cot_prompt(example: InferenceExample) -> PromptBundle:
+    """Native-language CoT: question, reasoning, and answer all in the task language.
+
+    Kept name for config/back-compat; generalizes beyond Yoruba. Languages
+    without hand-written exemplars run zero-shot.
+    """
+    lang = example_language(example)
+    lang_name = language_name(lang)
     exemplar_block = render_exemplar_block(
-        example.task,
+        exemplar_task_for(example, "yoruba_cot"),
         reasoning_mode="yo",
     )
 
@@ -603,7 +651,7 @@ def render_yoruba_cot_prompt(example: InferenceExample) -> PromptBundle:
                 "Instructions:\n"
                 "- Use the examples only as formatting guides, not as source facts.\n"
                 f"{quantity_instruction(example)}\n"
-                "- Reason step by step in Yoruba.\n"
+                f"- Reason step by step in {lang_name}.\n"
                 "- Finish with exactly one line:\n"
                 "Final answer: <answer>"
             ),
@@ -611,24 +659,26 @@ def render_yoruba_cot_prompt(example: InferenceExample) -> PromptBundle:
     )
 
     return PromptBundle(
-        system=yoruba_system_prompt(),
+        system=native_system_prompt(lang),
         user=user,
     )
 
 def render_translate_pivot_prompt(example: InferenceExample) -> PromptBundle:
+    lang = example_language(example)
+    lang_name = language_name(lang)
     exemplar_block = render_exemplar_block(
-        example.task,
+        exemplar_task_for(example, "translate_pivot"),
         reasoning_mode="translate",
     )
 
     user = "\n\n".join(
         [
-            f"{exemplar_block}{render_problem_block(example, question_label='Question (Yoruba)')}",
+            f"{exemplar_block}{render_problem_block(example, question_label=f'Question ({lang_name})')}",
             render_answer_format(example),
             (
                 "Instructions:\n"
                 "- Use the examples only as formatting guides, not as source facts.\n"
-                "- Translate the Yoruba question into English.\n"
+                f"- Translate the {lang_name} question into English.\n"
                 "- Solve the translated question by reasoning step by step in English.\n"
                 "- Finish with exactly one line:\n"
                 "Final answer: <answer>"
@@ -637,7 +687,7 @@ def render_translate_pivot_prompt(example: InferenceExample) -> PromptBundle:
     )
 
     return PromptBundle(
-        system=yoruba_system_prompt(),
+        system=native_system_prompt(lang),
         user=user,
     )
 
@@ -670,7 +720,7 @@ def render_answer_format(example: InferenceExample) -> str:
 
     return (
         "Answer format:\n"
-        "Final answer: <concise Yoruba answer>"
+        f"Final answer: <concise {language_name(example_language(example))} answer>"
     )
 
 def format_choices(choices: list[str]) -> list[str]:

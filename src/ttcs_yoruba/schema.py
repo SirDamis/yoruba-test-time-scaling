@@ -5,6 +5,8 @@ from typing import Any
 
 
 ANSWER_TYPES = {"choice", "number", "text", "freeform", "instruction"}
+# Language codes used across experiments (ISO 639-2/3 style).
+LANGUAGE_CODES = {"yor", "hau", "ibo", "swa", "amh", "eng"}
 REQUIRED_ITEM_FIELDS = {
     "id",
     "task",
@@ -43,9 +45,9 @@ class BenchmarkItem:
         if missing:
             raise ValidationError(f"Missing required fields{location}: {sorted(missing)}")
 
-        if row["language"] != "yo":
+        if row["language"] not in LANGUAGE_CODES:
             raise ValidationError(
-                f"Paper 1 is Yoruba-only; expected language='yo'{location}, got {row['language']!r}"
+                f"Unsupported language{location}: {row['language']!r}. Expected one of {sorted(LANGUAGE_CODES)}"
             )
         if row["answer_type"] not in ANSWER_TYPES:
             raise ValidationError(
@@ -64,7 +66,7 @@ class BenchmarkItem:
         return cls(
             id=str(row["id"]),
             task=str(row["task"]),
-            language="yo",
+            language=str(row["language"]),
             question=row["question"].strip(),
             choices=row["choices"],
             gold_answer=row["gold_answer"].strip(),

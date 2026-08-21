@@ -27,8 +27,36 @@ QUESTION_KEYS = ["question", "query", "prompt", "input", "instruction"]
 GOLD_KEYS = ["gold_answer", "answer", "target", "label", "output", "correct_answer"]
 CHOICE_KEYS = ["choices", "options", "multiple_choice_targets"]
 LANGUAGE_KEYS = ["language", "lang", "locale"]
-YORUBA_CODES = {"yo", "yor", "yoruba", "Yoruba", "YOR", "YO"}
 DOWNLOAD_OUTPUT_FIELDS = ("answer_type", "choices", "gold_answer", "question")
+
+# Experiment languages (native benchmarks) + English baseline.
+SUPPORTED_LANGUAGES = ("yor", "hau", "ibo", "swa", "amh")
+BASELINE_LANGUAGES = ("eng",)
+ALL_LANGUAGE_CODES = SUPPORTED_LANGUAGES + BASELINE_LANGUAGES
+
+LANGUAGE_NAMES = {
+    "yor": "Yoruba",
+    "hau": "Hausa",
+    "ibo": "Igbo",
+    "swa": "Swahili",
+    "amh": "Amharic",
+    "eng": "English",
+    "yo": "Yoruba",
+}
+
+# Codes that may appear in a dataset's own language column, per experiment code.
+LANGUAGE_COLUMN_ALIASES: dict[str, set[str]] = {
+    "yor": {"yo", "yor", "yoruba", "Yoruba", "YOR", "YO"},
+    "hau": {"hau", "hausa", "Hausa"},
+    "ibo": {"ibo", "igbo", "Igbo"},
+    "swa": {"swa", "swahili", "Swahili", "swh"},
+    "amh": {"amh", "amharic", "Amharic"},
+    "eng": {"eng", "english", "English"},
+}
+
+
+def language_name(code: str) -> str:
+    return LANGUAGE_NAMES.get(code, code)
 
 
 @dataclass(frozen=True)
@@ -46,21 +74,67 @@ class HFDatasetSpec:
         return Path("data") / "normalized" / self.group / self.key
 
 
-HF_DATASET_REGISTRY: dict[str, HFDatasetSpec] = {
-    "afrimmlu": HFDatasetSpec(
-        key="afrimmlu",
+# Base benchmark templates. Language-specific specs are built by
+# ``build_language_spec`` as ``{base}_{lang}`` (e.g. ``afrimgsm_hau``),
+# downloading from the matching per-language folder on Hugging Face.
+@dataclass(frozen=True)
+class _BaseDatasetTemplate:
+    hf_id: str
+    group: str
+    default_splits: tuple[str, ...]
+    # split -> remote filename inside data/<lang>/
+    split_files: dict[str, str]
+    trust_remote_code: bool = False
+
+
+BASE_DATASET_TEMPLATES: dict[str, _BaseDatasetTemplate] = {
+    "afrimmlu": _BaseDatasetTemplate(
         hf_id="masakhane/afrimmlu",
-        config="yor",
         group="question-answering",
-        # Test-only by default: merging validation/dev/test into all.jsonl risks
-        # duplicate items (val/dev overlap) and mixes splits into evaluation.
+        # Test-only by default: merging validation/dev/test risks duplicate items
+        # (val/dev overlap) and mixes splits into evaluation.
         default_splits=("test",),
-        data_files={
-            "validation": "https://huggingface.co/datasets/masakhane/afrimmlu/resolve/main/data/yor/val.tsv",
-            "dev": "https://huggingface.co/datasets/masakhane/afrimmlu/resolve/main/data/yor/dev.tsv",
-            "test": "https://huggingface.co/datasets/masakhane/afrimmlu/resolve/main/data/yor/test.tsv",
-        },
+        split_files={"validation": "val.tsv", "dev": "dev.tsv", "test": "test.tsv"},
     ),
+    "afrimgsm": _BaseDatasetTemplate(
+        hf_id="masakhane/afrimgsm",
+        group="math-reasoning",
+        default_splits=("dev", "test"),
+        split_files={"dev": "dev.tsv", "test": "test.tsv"},
+    ),
+}
+
+TEMPLATE_LANGUAGES: dict[str, tuple[str, ...]] = {
+    "afrimmlu": ALL_LANGUAGE_CODES,
+    "afrimgsm": ALL_LANGUAGE_CODES,
+}
+
+
+def build_language_spec(base_key: str, lang: str) -> HFDatasetSpec:
+    """Build a concrete spec for ``{base}_{lang}`` (e.g. ``afrimgsw_hau``)."""
+    if base_key not in BASE_DATASET_TEMPLATES:
+        raise ValueError(f"Unknown base dataset {base_key!r}")
+    if lang not in ALL_LANGUAGE_CODES:
+        raise ValueError(f"Unsupported language {lang!r}. Expected one of {sorted(ALL_LANGUAGE_CODES)}")
+    template = BASE_DATASET_TEMPLATES[base_key]
+    data_files = {
+        split: f"https://huggingface.co/datasets/{template.hf_id}/resolve/main/data/{lang}/{filename}"
+        for split, filename in template.split_files.items()
+    }
+    return HFDatasetSpec(
+        key=f"{base_key}_{lang}",
+        hf_id=template.hf_id,
+        config=lang,
+        group=template.group,
+        default_splits=template.default_splits,
+        trust_remote_code=template.trust_remote_code,
+        data_files=data_files,
+    )
+
+
+# Legacy / translate-only entries (Yoruba). Native multi-language downloads use
+# build_language_spec; these remain for backward compatibility.
+HF_DATASET_REGISTRY: dict[str, HFDatasetSpec] = {
     "afrimmlu_translate": HFDatasetSpec(
         key="afrimmlu_translate",
         hf_id="masakhane/afrimmlu-translate-test",
@@ -96,17 +170,6 @@ HF_DATASET_REGISTRY: dict[str, HFDatasetSpec] = {
             "test": "https://huggingface.co/datasets/aremuadeolajr/NaijaRC/resolve/main/yor/test.csv",
         },
     ),
-    "afrimgsm": HFDatasetSpec(
-        key="afrimgsm",
-        hf_id="masakhane/afrimgsm",
-        config="yor",
-        group="math-reasoning",
-        default_splits=("dev", "test"),
-        data_files={
-            "dev": "https://huggingface.co/datasets/masakhane/afrimgsm/resolve/main/data/yor/dev.tsv",
-            "test": "https://huggingface.co/datasets/masakhane/afrimgsm/resolve/main/data/yor/test.tsv",
-        },
-    ),
     "afrimgsm_translate": HFDatasetSpec(
         key="afrimgsm_translate",
         hf_id="masakhane/afrimgsm-translate-test",
@@ -118,6 +181,33 @@ HF_DATASET_REGISTRY: dict[str, HFDatasetSpec] = {
         },
     ),
 }
+
+
+def resolve_dataset_spec(dataset_key: str) -> HFDatasetSpec:
+    """Resolve a dataset key to a concrete spec.
+
+    Accepts ``{base}_{lang}`` keys (e.g. ``afrimgsm_swa``), legacy bare keys
+    (``afrimgsm`` → Yoruba), and the translate/legacy registry entries.
+    """
+    if "_" in dataset_key:
+        base, _, suffix = dataset_key.rpartition("_")
+        if base in BASE_DATASET_TEMPLATES and suffix in ALL_LANGUAGE_CODES:
+            return build_language_spec(base, suffix)
+    if dataset_key in HF_DATASET_REGISTRY:
+        return HF_DATASET_REGISTRY[dataset_key]
+    # Legacy bare template keys default to Yoruba.
+    if dataset_key in BASE_DATASET_TEMPLATES:
+        return build_language_spec(dataset_key, "yor")
+    raise ValueError(
+        f"Unknown dataset key {dataset_key!r}. Expected one of {sorted(available_dataset_keys())}"
+    )
+
+
+def available_dataset_keys() -> list[str]:
+    keys = set(HF_DATASET_REGISTRY)
+    for base_key, langs in TEMPLATE_LANGUAGES.items():
+        keys.update(f"{base_key}_{lang}" for lang in langs)
+    return sorted(keys)
 
 
 def stable_id(source_dataset: str, raw: dict[str, Any]) -> str:
@@ -181,11 +271,23 @@ def normalize_answer_label(answer: Any) -> str:
     return value.upper() if len(value) == 1 else value
 
 
-def is_yoruba_record(raw: dict[str, Any], spec: HFDatasetSpec) -> bool:
+def is_language_record(raw: dict[str, Any], spec: HFDatasetSpec) -> bool:
+    """Keep records whose language column matches the spec's language.
+
+    Files without a language column are folder-selected (the URL already pins
+    the language), so they are kept. Legacy Yoruba aliases are honored.
+    """
     language = first_present(raw, LANGUAGE_KEYS)
     if language is None:
-        return spec.config in {"yo", "yor"}
-    return str(language).strip() in YORUBA_CODES
+        return True
+    value = str(language).strip()
+    if value in LANGUAGE_COLUMN_ALIASES.get(spec.config, {spec.config}):
+        return True
+    return value.lower() == spec.config.lower()
+
+
+# Backward-compatible alias.
+is_yoruba_record = is_language_record
 
 
 def with_split_metadata(item: BenchmarkItem, split: str, raw: dict[str, Any], spec: HFDatasetSpec) -> BenchmarkItem:
@@ -219,12 +321,13 @@ def compact_download_row(item: BenchmarkItem) -> dict[str, Any]:
 
 
 def normalize_hf_record(source_dataset: str, raw: dict[str, Any], split: str, spec: HFDatasetSpec) -> BenchmarkItem:
-    if source_dataset in ("afrimmlu", "afrimmlu_translate"):
+    lang_code = spec.config if spec.config in ALL_LANGUAGE_CODES else "yor"
+    if source_dataset.startswith("afrimmlu"):
         choices = coerce_choices(raw.get("choices"))
         row = {
             "id": stable_id(source_dataset, {**raw, "split": split}),
             "task": "qa",
-            "language": "yo",
+            "language": lang_code,
             "question": raw.get("question"),
             "choices": choices,
             "gold_answer": normalize_answer_label(raw.get("answer")),
@@ -238,7 +341,7 @@ def normalize_hf_record(source_dataset: str, raw: dict[str, Any], split: str, sp
         row = {
             "id": stable_id(source_dataset, {**raw, "split": split}),
             "task": "qa",
-            "language": "yo",
+            "language": lang_code,
             "question": raw.get("question"),
             "choices": None,
             "gold_answer": first_answer(answers),
@@ -258,7 +361,7 @@ def normalize_hf_record(source_dataset: str, raw: dict[str, Any], split: str, sp
         row = {
             "id": stable_id(source_dataset, {**raw, "split": split}),
             "task": "reading_comprehension",
-            "language": "yo",
+            "language": lang_code,
             "question": f"Àyọkà:\n{story}\n\nÌbéèrè:\n{question}".strip(),
             "choices": choice_list_from_columns(raw),
             "gold_answer": normalize_answer_label(raw.get("Answer") or raw.get("answer")),
@@ -267,11 +370,11 @@ def normalize_hf_record(source_dataset: str, raw: dict[str, Any], split: str, sp
             "requires_yoruba_output": True,
             "metadata": {"year": raw.get("year"), "story_id": raw.get("story_id")},
         }
-    elif source_dataset in ("afrimgsm", "afrimgsm_translate"):
+    elif source_dataset.startswith("afrimgsm"):
         row = {
             "id": stable_id(source_dataset, {**raw, "split": split}),
             "task": "math",
-            "language": "yo",
+            "language": lang_code,
             "question": raw.get("question"),
             "choices": None,
             "gold_answer": str(raw.get("answer_number") or raw.get("answer", "")).strip(),
@@ -476,10 +579,7 @@ def download_yoruba_hf_dataset(
     config_override: str | None = None,
     backend: str = "auto",
 ) -> dict[str, Any]:
-    if dataset_key not in HF_DATASET_REGISTRY:
-        raise ValueError(f"Unknown dataset key {dataset_key!r}. Expected one of {sorted(HF_DATASET_REGISTRY)}")
-
-    base_spec = HF_DATASET_REGISTRY[dataset_key]
+    base_spec = resolve_dataset_spec(dataset_key)
     spec = HFDatasetSpec(
         key=base_spec.key,
         hf_id=hf_id_override or base_spec.hf_id,
@@ -504,9 +604,12 @@ def download_yoruba_hf_dataset(
 
 def normalize_raw_record(source_dataset: str, raw: dict[str, Any]) -> BenchmarkItem:
     defaults = SOURCE_DEFAULTS.get(source_dataset, {"task": "qa", "answer_type": "text"})
-    language = first_present(raw, LANGUAGE_KEYS) or "yo"
-    if language in {"yor", "yoruba", "Yoruba"}:
-        language = "yo"
+    language = first_present(raw, LANGUAGE_KEYS) or "yor"
+    normalized_language = str(language).strip().lower()
+    if normalized_language in {"yo", "yor", "yoruba"}:
+        language = "yor"
+    elif normalized_language in LANGUAGE_COLUMN_ALIASES:
+        language = normalized_language
 
     question = first_present(raw, QUESTION_KEYS)
     gold_answer = first_present(raw, GOLD_KEYS)

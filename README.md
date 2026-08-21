@@ -43,7 +43,17 @@ Set `HF_TOKEN` for gated models. Qwen3 native thinking is disabled in both backe
 
 ## Experiment plan
 
-Run order: **E1 → E2 → E3 → E4**. After E1, set the E2 config's `prompt_style` to the winning strategy.
+Run order: **E0 → E1 → E2 → E3 → E4**. After E1, set the E2 config's `prompt_style` to the winning strategy.
+
+### E0 — English baseline (multilingual reasoning gap)
+
+English question → English CoT → answer on the native `eng` splits of the same benchmarks; compare against each language's `english_cot` rows from E1 to measure the reasoning gap.
+
+```bash
+uv run python scripts/run_inference.py --config configs/e0_english_baseline.json            # HF
+uv run python scripts/run_inference.py --config configs/e0_english_baseline_vllm.json       # vLLM
+uv run python scripts/run_inference.py --config configs/e0_english_baseline_ramp_router.json # Ramp Router
+```
 
 ### E1 — Reasoning language (greedy N=1)
 
