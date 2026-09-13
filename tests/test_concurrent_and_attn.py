@@ -225,17 +225,17 @@ def _assert_experiment_scope(cfg: object) -> None:
         assert str(d.path).endswith(f"{name}/test.jsonl"), name
 
 
-def test_e1_vllm_config_has_concurrency_and_1024() -> None:
+def test_e1_vllm_config_has_concurrency_and_2048() -> None:
     cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language_vllm.json")
     assert cfg.max_concurrent == 8
-    assert all(m.max_tokens == 1024 for m in cfg.methods)
+    assert all(m.max_tokens == 2048 for m in cfg.methods)
     _assert_experiment_scope(cfg)
 
 
-def test_e1_hf_config_has_auto_attn_and_1024() -> None:
+def test_e1_hf_config_has_auto_attn_and_2048() -> None:
     cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language.json")
     assert cfg.max_concurrent == 1
-    assert all(m.max_tokens == 1024 for m in cfg.methods)
+    assert all(m.max_tokens == 2048 for m in cfg.methods)
     for model in cfg.models:
         assert model.backend_kwargs.get("attn_implementation") == "auto"
     _assert_experiment_scope(cfg)
@@ -250,15 +250,19 @@ def test_e2_configs_target_test_splits_only() -> None:
 def test_e1_openrouter_config_has_cost_and_retry_settings() -> None:
     cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language_openrouter.json")
     assert cfg.max_concurrent == 4
-    assert all(m.max_tokens == 1024 for m in cfg.methods)
+    assert all(m.max_tokens == 2048 for m in cfg.methods)
     assert {m.name for m in cfg.models} == {"qwen3-4b", "gemma3-4b", "llama3.2-3b", "deepseek-v4-flash"}
     for model in cfg.models:
         assert model.backend == "openai_compatible"
         assert model.base_url == "https://openrouter.ai/api/v1"
         assert model.api_key_env == "OPENROUTER_API_KEY"
-        assert model.backend_kwargs.get("max_retries") == 3
-    qwen = next(m for m in cfg.models if m.name == "qwen3-4b")
-    assert qwen.backend_kwargs.get("reasoning") == {"enabled": False}
+        assert model.backend_kwargs.get("max_retries") == 5
+        # Prompted-CoT experiment: native thinking off for every model.
+        assert model.backend_kwargs.get("reasoning") == {"enabled": False}
+        assert model.backend_kwargs.get("extra_body") == {
+            "provider": {"allow_fallbacks": True}
+        }
+    assert cfg.transient_retry_rounds == 5
 
 
 def test_e1_ramp_router_config_uses_responses_backend() -> None:
@@ -266,7 +270,7 @@ def test_e1_ramp_router_config_uses_responses_backend() -> None:
 
     cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language_ramp_router.json")
     assert cfg.max_concurrent == 4
-    assert all(m.max_tokens == 1024 for m in cfg.methods)
+    assert all(m.max_tokens == 2048 for m in cfg.methods)
     assert {m.name for m in cfg.models} == {"qwen3-4b", "gemma3-4b", "llama3.2-3b", "deepseek-v4-flash"}
     for model in cfg.models:
         assert model.backend == "responses_api"
@@ -524,6 +528,75 @@ def test_curl_cffi_transport_rejects_4xx() -> None:
             raise AssertionError("expected BackendError for 403")
 
 
+def test_process_wave_retries_transient_failures() -> None:
+    from ttcs_yoruba.inference import process_wave_with_retries
+
+    calls = {"n": 0}
+
+    def worker(item: int) -> str:
+        calls["n"] += 1
+        if item == 2 and calls["n"] <= 2:
+            raise BackendError("HTTP 429 rate limited", retryable=True)
+        return f"ok-{item}"
+
+    seen: list[str] = []
+    process_wave_with_retries(
+        [1, 2, 3],
+        worker,
+        concurrency=1,
+        max_rounds=3,
+        initial_backoff_s=0.0,
+        max_backoff_s=0.0,
+        on_success=seen.append,
+    )
+    assert sorted(seen) == ["ok-1", "ok-2", "ok-3"]
+    assert calls["n"] == 4  # item 2 failed once, then one retry
+
+
+def test_process_wave_raises_non_transient_immediately() -> None:
+    from ttcs_yoruba.inference import process_wave_with_retries
+
+    calls = {"n": 0}
+
+    def worker(item: int) -> str:
+        calls["n"] += 1
+        raise BackendError("HTTP 400 bad request", retryable=False)
+
+    with pytest.raises(BackendError):
+        process_wave_with_retries(
+            [1],
+            worker,
+            concurrency=1,
+            max_rounds=3,
+            initial_backoff_s=0.0,
+            max_backoff_s=0.0,
+            on_success=lambda result: None,
+        )
+    assert calls["n"] == 1
+
+
+def test_process_wave_exhausts_transient_retries() -> None:
+    from ttcs_yoruba.inference import process_wave_with_retries
+
+    calls = {"n": 0}
+
+    def worker(item: int) -> str:
+        calls["n"] += 1
+        raise BackendError("HTTP 503 upstream error", retryable=True)
+
+    with pytest.raises(BackendError):
+        process_wave_with_retries(
+            [1],
+            worker,
+            concurrency=1,
+            max_rounds=2,
+            initial_backoff_s=0.0,
+            max_backoff_s=0.0,
+            on_success=lambda result: None,
+        )
+    assert calls["n"] == 3  # initial attempt + 2 retry rounds
+
+
 if __name__ == "__main__":
     test_run_concurrent_map_preserves_order()
     test_run_concurrent_map_serial_when_one_worker()
@@ -534,8 +607,11 @@ if __name__ == "__main__":
     test_resolve_attn_auto_ada_without_flash_pkg()
     test_openai_compatible_retries_rate_limits()
     test_provider_cost_accepts_valid_usage_cost_only()
-    test_e1_vllm_config_has_concurrency_and_1024()
-    test_e1_hf_config_has_auto_attn_and_1024()
+    test_process_wave_retries_transient_failures()
+    test_process_wave_raises_non_transient_immediately()
+    test_process_wave_exhausts_transient_retries()
+    test_e1_vllm_config_has_concurrency_and_2048()
+    test_e1_hf_config_has_auto_attn_and_2048()
     test_e2_configs_target_test_splits_only()
     test_e1_openrouter_config_has_cost_and_retry_settings()
     test_e1_ramp_router_config_uses_responses_backend()

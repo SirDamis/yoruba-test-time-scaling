@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import random
 import sys
 import time
 from collections import defaultdict
@@ -475,6 +476,55 @@ def iter_concurrent_results_tolerant(
                 yield idx, None, exc
 
 
+def _is_transient_error(exc: BaseException) -> bool:
+    """True when a backend error is safe to retry (429/5xx/network)."""
+    return bool(getattr(exc, "retryable", False))
+
+
+def process_wave_with_retries(
+    items: list[Any],
+    worker: Callable[[Any], Any],
+    *,
+    concurrency: int,
+    max_rounds: int,
+    initial_backoff_s: float,
+    max_backoff_s: float,
+    on_success: Callable[[Any], None],
+    on_retry: Callable[[int, int, float], None] | None = None,
+) -> None:
+    """Run ``worker`` over ``items`` concurrently, retrying transient failures.
+
+    Successful results are handed to ``on_success`` immediately, so units are
+    checkpointed before any retry wave. If a failure is non-transient or the
+    retry budget is exhausted, the first error is re-raised so the caller can
+    abort (resume-safe). Retry waits use jittered exponential backoff.
+    """
+    remaining = list(items)
+    round_no = 0
+    while remaining:
+        errors: list[BaseException] = []
+        failed_indices: list[int] = []
+        for idx, result, error in iter_concurrent_results_tolerant(
+            remaining, worker, max_workers=concurrency
+        ):
+            if error is not None:
+                errors.append(error)
+                failed_indices.append(idx)
+                continue
+            on_success(result)
+        if not errors:
+            return
+        if round_no >= max_rounds or not all(_is_transient_error(e) for e in errors):
+            raise errors[0]
+        round_no += 1
+        delay_s = min(max_backoff_s, initial_backoff_s * (2 ** (round_no - 1)))
+        delay_s *= 0.5 + random.random()
+        if on_retry is not None:
+            on_retry(round_no, len(errors), delay_s)
+        time.sleep(delay_s)
+        remaining = [remaining[i] for i in failed_indices]
+
+
 def run_inference_pipeline(
     config: InferenceRunConfig,
     *,
@@ -628,6 +678,13 @@ def run_inference_pipeline(
                     enabled=progress,
                 )
 
+                def _on_transient_retry(round_no: int, failed: int, delay_s: float) -> None:
+                    log_progress(
+                        f"[{config.run_id}] transient failures={failed}  "
+                        f"retry_round={round_no}  backoff_s={delay_s:.1f}",
+                        enabled=progress,
+                    )
+
                 # Independent methods: sample N times per method (legacy / non-nested).
                 for method in standalone_methods:
                     log_progress(
@@ -677,73 +734,74 @@ def run_inference_pipeline(
                             "latency_s": latency_s,
                         }
 
-                    # Wave concurrent requests so vLLM can continuous-batch.
-                    # Checkpoint successes even if some items in the wave fail.
+                    def _on_standalone_success(result: dict[str, Any]) -> None:
+                        nonlocal units_processed, scored_so_far, correct_so_far
+                        example = result["example"]
+                        candidate_rows = result["candidate_rows"]
+                        selection_row = result["selection_row"]
+                        unit = standalone_unit_key(
+                            dataset.name, model.name, method.name, example.id
+                        )
+                        write_unit_batch(
+                            candidate_handle,
+                            selection_handle,
+                            candidate_rows=candidate_rows,
+                            selection_rows=[selection_row],
+                        )
+                        counts["model_generations"] += len(candidate_rows)
+                        counts["candidate_rows"] += len(candidate_rows)
+                        counts["selection_rows"] += 1
+
+                        append_completed_unit(
+                            checkpoint_path,
+                            unit,
+                            extra={
+                                "unit_type": "standalone",
+                                "dataset": dataset.name,
+                                "model": model.name,
+                                "method": method.name,
+                                "example_id": example.id,
+                            },
+                        )
+                        completed.add(unit)
+                        counts["units_completed_this_run"] += 1
+                        units_processed += 1
+
+                        is_correct = bool(selection_row.get("is_correct"))
+                        scored_so_far += 1
+                        if is_correct:
+                            correct_so_far += 1
+                        log_progress(
+                            _format_progress_line(
+                                run_id=config.run_id,
+                                done=units_processed,
+                                total=total_units,
+                                dataset=dataset.name,
+                                model=model.name,
+                                method=method.name,
+                                example_id=example.id,
+                                is_correct=is_correct,
+                                latency_s=float(result["latency_s"]),
+                                skipped=int(counts["units_skipped"]),
+                                correct_so_far=correct_so_far,
+                                scored_so_far=scored_so_far,
+                            ),
+                            enabled=progress,
+                        )
+
+                    # Wave concurrent requests; checkpoint successes before retrying transients.
                     for wave_start in range(0, len(pending), concurrency):
                         wave = pending[wave_start : wave_start + concurrency]
-                        wave_errors: list[tuple[int, BaseException]] = []
-                        for idx, result, error in iter_concurrent_results_tolerant(
-                            wave, _standalone_worker, max_workers=concurrency
-                        ):
-                            if error is not None:
-                                wave_errors.append((idx, error))
-                                continue
-                            example = result["example"]
-                            candidate_rows = result["candidate_rows"]
-                            selection_row = result["selection_row"]
-                            unit = standalone_unit_key(
-                                dataset.name, model.name, method.name, example.id
-                            )
-                            write_unit_batch(
-                                candidate_handle,
-                                selection_handle,
-                                candidate_rows=candidate_rows,
-                                selection_rows=[selection_row],
-                            )
-                            counts["model_generations"] += len(candidate_rows)
-                            counts["candidate_rows"] += len(candidate_rows)
-                            counts["selection_rows"] += 1
-
-                            append_completed_unit(
-                                checkpoint_path,
-                                unit,
-                                extra={
-                                    "unit_type": "standalone",
-                                    "dataset": dataset.name,
-                                    "model": model.name,
-                                    "method": method.name,
-                                    "example_id": example.id,
-                                },
-                            )
-                            completed.add(unit)
-                            counts["units_completed_this_run"] += 1
-                            units_processed += 1
-
-                            is_correct = bool(selection_row.get("is_correct"))
-                            scored_so_far += 1
-                            if is_correct:
-                                correct_so_far += 1
-                            log_progress(
-                                _format_progress_line(
-                                    run_id=config.run_id,
-                                    done=units_processed,
-                                    total=total_units,
-                                    dataset=dataset.name,
-                                    model=model.name,
-                                    method=method.name,
-                                    example_id=example.id,
-                                    is_correct=is_correct,
-                                    latency_s=float(result["latency_s"]),
-                                    skipped=int(counts["units_skipped"]),
-                                    correct_so_far=correct_so_far,
-                                    scored_so_far=scored_so_far,
-                                ),
-                                enabled=progress,
-                            )
-                        if wave_errors:
-                            # Failures were not checkpointed; resume will retry them.
-                            wave_errors.sort(key=lambda pair: pair[0])
-                            raise wave_errors[0][1]
+                        process_wave_with_retries(
+                            wave,
+                            _standalone_worker,
+                            concurrency=concurrency,
+                            max_rounds=config.transient_retry_rounds,
+                            initial_backoff_s=config.transient_retry_initial_backoff_s,
+                            max_backoff_s=config.transient_retry_max_backoff_s,
+                            on_success=_on_standalone_success,
+                            on_retry=_on_transient_retry,
+                        )
 
                 # Nested groups: true greedy N=1 (if configured) + sample once at max k for TTC.
                 # Buffer all k slices, write as one batch, then checkpoint.
@@ -849,75 +907,78 @@ def run_inference_pipeline(
                             "gen_count": len(greedy_rows) + len(pool),
                         }
 
+                    def _on_nested_success(result: dict[str, Any]) -> None:
+                        nonlocal units_processed, scored_so_far, correct_so_far
+                        example = result["example"]
+                        batch_candidates = result["batch_candidates"]
+                        batch_selections = result["batch_selections"]
+                        unit = nested_unit_key(dataset.name, model.name, group_id, example.id)
+                        write_unit_batch(
+                            candidate_handle,
+                            selection_handle,
+                            candidate_rows=batch_candidates,
+                            selection_rows=batch_selections,
+                        )
+                        counts["model_generations"] += int(result["gen_count"])
+                        counts["candidate_rows"] += len(batch_candidates)
+                        counts["selection_rows"] += len(batch_selections)
+
+                        append_completed_unit(
+                            checkpoint_path,
+                            unit,
+                            extra={
+                                "unit_type": "nested",
+                                "dataset": dataset.name,
+                                "model": model.name,
+                                "group_id": group_id,
+                                "example_id": example.id,
+                                "methods": [m.name for m in sorted_methods],
+                                "pool_n": pool_n,
+                                "greedy_n1": greedy_method is not None,
+                            },
+                        )
+                        completed.add(unit)
+                        counts["units_completed_this_run"] += 1
+                        units_processed += 1
+
+                        for selection_row in batch_selections:
+                            scored_so_far += 1
+                            if selection_row.get("is_correct"):
+                                correct_so_far += 1
+                        any_correct = any(bool(r.get("is_correct")) for r in batch_selections)
+                        method_label = (
+                            sample_method.name if sample_method is not None else group_id
+                        )
+                        log_progress(
+                            _format_progress_line(
+                                run_id=config.run_id,
+                                done=units_processed,
+                                total=total_units,
+                                dataset=dataset.name,
+                                model=model.name,
+                                method=method_label,
+                                example_id=example.id,
+                                is_correct=any_correct,
+                                latency_s=float(result["latency_s"]),
+                                skipped=int(counts["units_skipped"]),
+                                correct_so_far=correct_so_far,
+                                scored_so_far=scored_so_far,
+                            ),
+                            enabled=progress,
+                        )
+
                     for wave_start in range(0, len(pending_nested), concurrency):
                         wave = pending_nested[wave_start : wave_start + concurrency]
-                        wave_errors: list[tuple[int, BaseException]] = []
-                        for idx, result, error in iter_concurrent_results_tolerant(
-                            wave, _nested_worker, max_workers=concurrency
-                        ):
-                            if error is not None:
-                                wave_errors.append((idx, error))
-                                continue
-                            example = result["example"]
-                            batch_candidates = result["batch_candidates"]
-                            batch_selections = result["batch_selections"]
-                            unit = nested_unit_key(dataset.name, model.name, group_id, example.id)
-                            write_unit_batch(
-                                candidate_handle,
-                                selection_handle,
-                                candidate_rows=batch_candidates,
-                                selection_rows=batch_selections,
-                            )
-                            counts["model_generations"] += int(result["gen_count"])
-                            counts["candidate_rows"] += len(batch_candidates)
-                            counts["selection_rows"] += len(batch_selections)
-
-                            append_completed_unit(
-                                checkpoint_path,
-                                unit,
-                                extra={
-                                    "unit_type": "nested",
-                                    "dataset": dataset.name,
-                                    "model": model.name,
-                                    "group_id": group_id,
-                                    "example_id": example.id,
-                                    "methods": [m.name for m in sorted_methods],
-                                    "pool_n": pool_n,
-                                    "greedy_n1": greedy_method is not None,
-                                },
-                            )
-                            completed.add(unit)
-                            counts["units_completed_this_run"] += 1
-                            units_processed += 1
-
-                            for selection_row in batch_selections:
-                                scored_so_far += 1
-                                if selection_row.get("is_correct"):
-                                    correct_so_far += 1
-                            any_correct = any(bool(r.get("is_correct")) for r in batch_selections)
-                            method_label = (
-                                sample_method.name if sample_method is not None else group_id
-                            )
-                            log_progress(
-                                _format_progress_line(
-                                    run_id=config.run_id,
-                                    done=units_processed,
-                                    total=total_units,
-                                    dataset=dataset.name,
-                                    model=model.name,
-                                    method=method_label,
-                                    example_id=example.id,
-                                    is_correct=any_correct,
-                                    latency_s=float(result["latency_s"]),
-                                    skipped=int(counts["units_skipped"]),
-                                    correct_so_far=correct_so_far,
-                                    scored_so_far=scored_so_far,
-                                ),
-                                enabled=progress,
-                            )
-                        if wave_errors:
-                            wave_errors.sort(key=lambda pair: pair[0])
-                            raise wave_errors[0][1]
+                        process_wave_with_retries(
+                            wave,
+                            _nested_worker,
+                            concurrency=concurrency,
+                            max_rounds=config.transient_retry_rounds,
+                            initial_backoff_s=config.transient_retry_initial_backoff_s,
+                            max_backoff_s=config.transient_retry_max_backoff_s,
+                            on_success=_on_nested_success,
+                            on_retry=_on_transient_retry,
+                        )
 
     elapsed = time.monotonic() - run_started
     log_progress(

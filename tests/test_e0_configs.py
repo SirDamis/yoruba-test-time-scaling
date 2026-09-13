@@ -46,6 +46,7 @@ def test_e0_openrouter_config() -> None:
     _assert_e0_scope(cfg)
     assert cfg.run_id == "e0_english_baseline_openrouter"
     assert cfg.max_concurrent == 4
+    assert cfg.transient_retry_rounds == 5
     assert {m.name for m in cfg.models} == {
         "qwen3-4b",
         "qwen3-8b",
@@ -56,10 +57,13 @@ def test_e0_openrouter_config() -> None:
         assert model.backend == "openai_compatible"
         assert model.base_url == "https://openrouter.ai/api/v1"
         assert model.api_key_env == "OPENROUTER_API_KEY"
-        assert model.backend_kwargs.get("max_retries") == 3
-    for name in ("qwen3-4b", "qwen3-8b"):
-        qwen = next(m for m in cfg.models if m.name == name)
-        assert qwen.backend_kwargs.get("reasoning") == {"enabled": False}
+        assert model.backend_kwargs.get("max_retries") == 5
+        # Prompted-CoT experiment: native thinking off for every model.
+        assert model.backend_kwargs.get("reasoning") == {"enabled": False}
+        # Let OpenRouter route around a rate-limited upstream provider.
+        assert model.backend_kwargs.get("extra_body") == {
+            "provider": {"allow_fallbacks": True}
+        }
 
 
 def test_e0_ramp_router_config() -> None:

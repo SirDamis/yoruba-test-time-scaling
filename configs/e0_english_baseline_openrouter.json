@@ -5,6 +5,9 @@
   "default_request_timeout_s": 180,
   "continue_on_error": false,
   "max_concurrent": 4,
+  "transient_retry_rounds": 5,
+  "transient_retry_initial_backoff_s": 5.0,
+  "transient_retry_max_backoff_s": 60.0,
   "datasets": [
     {
       "name": "afrimgsm_eng",
@@ -33,9 +36,14 @@
         "reasoning": {
           "enabled": false
         },
-        "max_retries": 3,
+        "extra_body": {
+          "provider": {
+            "allow_fallbacks": false
+          }
+        },
+        "max_retries": 5,
         "retry_initial_backoff_s": 1.0,
-        "retry_max_backoff_s": 30.0,
+        "retry_max_backoff_s": 60.0,
         "headers": {
           "X-OpenRouter-Title": "Yoruba TTCS"
         }
@@ -54,9 +62,14 @@
         "reasoning": {
           "enabled": false
         },
-        "max_retries": 3,
+        "extra_body": {
+          "provider": {
+            "allow_fallbacks": false
+          }
+        },
+        "max_retries": 5,
         "retry_initial_backoff_s": 1.0,
-        "retry_max_backoff_s": 30.0,
+        "retry_max_backoff_s": 60.0,
         "headers": {
           "X-OpenRouter-Title": "Yoruba TTCS"
         }
@@ -72,9 +85,17 @@
       "api_key_env": "OPENROUTER_API_KEY",
       "backend_kwargs": {
         "send_seed": true,
-        "max_retries": 3,
+        "reasoning": {
+          "enabled": false
+        },
+        "extra_body": {
+          "provider": {
+            "allow_fallbacks": false
+          }
+        },
+        "max_retries": 5,
         "retry_initial_backoff_s": 1.0,
-        "retry_max_backoff_s": 30.0,
+        "retry_max_backoff_s": 60.0,
         "headers": {
           "X-OpenRouter-Title": "Yoruba TTCS"
         }
@@ -90,9 +111,17 @@
       "api_key_env": "OPENROUTER_API_KEY",
       "backend_kwargs": {
         "send_seed": true,
-        "max_retries": 3,
+        "reasoning": {
+          "enabled": false
+        },
+        "extra_body": {
+          "provider": {
+            "allow_fallbacks": false
+          }
+        },
+        "max_retries": 5,
         "retry_initial_backoff_s": 1.0,
-        "retry_max_backoff_s": 30.0,
+        "retry_max_backoff_s": 60.0,
         "headers": {
           "X-OpenRouter-Title": "Yoruba TTCS"
         }
@@ -106,7 +135,7 @@
       "selection": "first",
       "n": 1,
       "temperature": 0.0,
-      "max_tokens": 1024,
+      "max_tokens": 2048,
       "reasoning_language": "en"
     }
   ]

@@ -155,7 +155,7 @@
       "temperature_n1": 0.0,
       "top_p": 0.7,
       "greedy_n1": true,
-      "max_tokens": 1024,
+      "max_tokens": 2048,
       "reasoning_language": "en"
     }
   ],

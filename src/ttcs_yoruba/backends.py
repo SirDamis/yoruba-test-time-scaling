@@ -15,7 +15,15 @@ from .schema import BackendOutput
 
 
 class BackendError(RuntimeError):
-    """Raised when a model backend cannot complete a generation request."""
+    """Raised when a model backend cannot complete a generation request.
+
+    ``retryable`` marks transient failures (HTTP 429/5xx, network errors) that
+    a caller may retry after a backoff rather than abort a whole run.
+    """
+
+    def __init__(self, message: str, *, retryable: bool = False) -> None:
+        super().__init__(message)
+        self.retryable = retryable
 
 
 def _completion_token_count(
@@ -270,7 +278,7 @@ class TransformersChatBackend(InferenceBackend):
 
     def _generation_kwargs(self, temperature: float | None, max_tokens: int | None, *, top_p: float | None = None) -> dict[str, Any]:
         kwargs = {
-            "max_new_tokens": max_tokens or int(self.config.backend_kwargs.get("max_new_tokens", 1024)),
+            "max_new_tokens": max_tokens or int(self.config.backend_kwargs.get("max_new_tokens", 2048)),
             "pad_token_id": self.tokenizer.pad_token_id or self.tokenizer.eos_token_id,
         }
         if self.tokenizer.eos_token_id is not None:
@@ -371,7 +379,7 @@ class _OpenAIHTTPMixin:
                 retryable = True
 
             if not retryable or attempt == max_retries:
-                raise BackendError(message) from last_error
+                raise BackendError(message, retryable=retryable) from last_error
             self._sleep_before_retry(
                 attempt,
                 initial_backoff_s=initial_backoff_s,

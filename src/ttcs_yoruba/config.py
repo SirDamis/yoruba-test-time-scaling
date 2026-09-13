@@ -147,6 +147,12 @@ class InferenceRunConfig:
     # Concurrent in-flight generations (useful for local vLLM). HF Transformers
     # is clamped to 1 in the pipeline (model generate is not thread-safe).
     max_concurrent: int = 1
+    # Wave-level retry for transient backend failures (429/5xx/network) that
+    # outlast the per-request retry loop. Completed units are checkpointed
+    # before a retry wave, so this stays resume-safe.
+    transient_retry_rounds: int = 3
+    transient_retry_initial_backoff_s: float = 5.0
+    transient_retry_max_backoff_s: float = 60.0
 
     @classmethod
     def from_dict(cls, row: dict[str, Any]) -> "InferenceRunConfig":
@@ -164,6 +170,11 @@ class InferenceRunConfig:
         max_concurrent = int(row.get("max_concurrent", 1))
         if max_concurrent < 1:
             raise ValueError(f"max_concurrent must be >= 1, got {max_concurrent}")
+        transient_retry_rounds = int(row.get("transient_retry_rounds", 3))
+        if transient_retry_rounds < 0:
+            raise ValueError(
+                f"transient_retry_rounds must be >= 0, got {transient_retry_rounds}"
+            )
         return cls(
             run_id=str(row.get("run_id", "yoruba_ttc_cloud")),
             output_dir=Path(row.get("output_dir", "runs")),
@@ -174,6 +185,13 @@ class InferenceRunConfig:
             default_request_timeout_s=float(row.get("default_request_timeout_s", 120.0)),
             continue_on_error=bool(row.get("continue_on_error", False)),
             max_concurrent=max_concurrent,
+            transient_retry_rounds=transient_retry_rounds,
+            transient_retry_initial_backoff_s=float(
+                row.get("transient_retry_initial_backoff_s", 5.0)
+            ),
+            transient_retry_max_backoff_s=float(
+                row.get("transient_retry_max_backoff_s", 60.0)
+            ),
         )
 
 

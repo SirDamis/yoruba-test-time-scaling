@@ -172,7 +172,7 @@
       "selection": "first",
       "n": 1,
       "temperature": 0.0,
-      "max_tokens": 1024,
+      "max_tokens": 2048,
       "reasoning_language": "yo"
     },
     {
@@ -181,7 +181,7 @@
       "selection": "first",
       "n": 1,
       "temperature": 0.0,
-      "max_tokens": 1024,
+      "max_tokens": 2048,
       "reasoning_language": "en"
     },
     {
@@ -190,7 +190,7 @@
       "selection": "first",
       "n": 1,
       "temperature": 0.0,
-      "max_tokens": 1024,
+      "max_tokens": 2048,
       "reasoning_language": "en_pivot"
     },
     {
@@ -199,7 +199,7 @@
       "selection": "first",
       "n": 1,
       "temperature": 0.0,
-      "max_tokens": 1024,
+      "max_tokens": 2048,
       "reasoning_language": "none"
     }
   ]
