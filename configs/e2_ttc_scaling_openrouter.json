@@ -1,0 +1,75 @@
+{
+  "run_id": "e2_ttc_scaling_openrouter",
+  "output_dir": "runs",
+  "seed": 20260708,
+  "default_request_timeout_s": 180,
+  "continue_on_error": false,
+  "max_concurrent": 4,
+  "transient_retry_rounds": 5,
+  "transient_retry_initial_backoff_s": 5.0,
+  "transient_retry_max_backoff_s": 60.0,
+  "datasets": [
+    {
+      "name": "afrimgsm_yor",
+      "path": "data/normalized/math-reasoning/afrimgsm_yor/test.jsonl",
+      "task": "math",
+      "source_dataset": "afrimgsm_yor"
+    },
+    {
+      "name": "afrimmlu_yor",
+      "path": "data/normalized/question-answering/afrimmlu_yor/test.jsonl",
+      "task": "qa",
+      "source_dataset": "afrimmlu_yor"
+    }
+  ],
+  "models": [
+    {
+      "name": "qwen3-8b",
+      "backend": "openai_compatible",
+      "model": "qwen/qwen3-8b",
+      "size_label": "8B",
+      "cost_per_1k_tokens": 0.0,
+      "base_url": "https://openrouter.ai/api/v1",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "backend_kwargs": {
+        "send_seed": true,
+        "reasoning": {
+          "enabled": false
+        },
+        "extra_body": {
+          "provider": {
+            "allow_fallbacks": false
+          }
+        },
+        "max_retries": 5,
+        "retry_initial_backoff_s": 1.0,
+        "retry_max_backoff_s": 60.0,
+        "headers": {
+          "X-OpenRouter-Title": "Yoruba TTCS"
+        }
+      }
+    }
+  ],
+  "methods": [
+    {
+      "name": "english_cot_ttc",
+      "prompt_style": "english_cot",
+      "selection": "majority_vote",
+      "n_values": [
+        1,
+        4,
+        8,
+        16,
+        32,
+        64
+      ],
+      "nested_n": true,
+      "temperature": 0.7,
+      "temperature_n1": 0.0,
+      "top_p": 0.7,
+      "greedy_n1": true,
+      "max_tokens": 2048,
+      "reasoning_language": "en"
+    }
+  ]
+}

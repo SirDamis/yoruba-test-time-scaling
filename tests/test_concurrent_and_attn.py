@@ -251,7 +251,7 @@ def test_e1_openrouter_config_has_cost_and_retry_settings() -> None:
     cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language_openrouter.json")
     assert cfg.max_concurrent == 4
     assert all(m.max_tokens == 2048 for m in cfg.methods)
-    assert {m.name for m in cfg.models} == {"qwen3-4b", "gemma3-4b", "llama3.2-3b", "deepseek-v4-flash"}
+    assert {m.name for m in cfg.models} == {"qwen3-4b", "qwen3-8b", "gemma3-4b", "llama3.2-3b", "deepseek-v4-flash"}
     for model in cfg.models:
         assert model.backend == "openai_compatible"
         assert model.base_url == "https://openrouter.ai/api/v1"
@@ -260,7 +260,7 @@ def test_e1_openrouter_config_has_cost_and_retry_settings() -> None:
         # Prompted-CoT experiment: native thinking off for every model.
         assert model.backend_kwargs.get("reasoning") == {"enabled": False}
         assert model.backend_kwargs.get("extra_body") == {
-            "provider": {"allow_fallbacks": True}
+            "provider": {"allow_fallbacks": False}
         }
     assert cfg.transient_retry_rounds == 5
 

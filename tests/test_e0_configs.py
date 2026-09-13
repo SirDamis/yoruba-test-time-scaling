@@ -62,7 +62,7 @@ def test_e0_openrouter_config() -> None:
         assert model.backend_kwargs.get("reasoning") == {"enabled": False}
         # Let OpenRouter route around a rate-limited upstream provider.
         assert model.backend_kwargs.get("extra_body") == {
-            "provider": {"allow_fallbacks": True}
+            "provider": {"allow_fallbacks": False}
         }
 
 
