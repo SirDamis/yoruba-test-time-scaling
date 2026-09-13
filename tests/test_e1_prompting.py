@@ -38,15 +38,16 @@ def _translated_math_example() -> InferenceExample:
     )
 
 
-def test_e1_config_has_three_strategies() -> None:
+def test_e1_config_has_expected_strategies() -> None:
     cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language.json")
     assert len(cfg.models) == 3
     assert {m.prompt_style for m in cfg.methods} == {
         "yoruba_cot",
         "english_cot",
         "translate_pivot",
+        "direct",
     }
-    assert {m.reasoning_language for m in cfg.methods} == {"yo", "en", "en_pivot"}
+    assert {m.reasoning_language for m in cfg.methods} == {"yo", "en", "en_pivot", "none"}
     assert all(m.backend == "transformers" for m in cfg.models)
 
 
@@ -63,8 +64,9 @@ def test_e1_vllm_config_matches_experiment_with_openai_compatible() -> None:
         "yoruba_cot",
         "english_cot",
         "translate_pivot",
+        "direct",
     }
-    assert {m.reasoning_language for m in vllm.methods} == {"yo", "en", "en_pivot"}
+    assert {m.reasoning_language for m in vllm.methods} == {"yo", "en", "en_pivot", "none"}
     assert all(m.n == 1 and m.selection == "first" for m in vllm.methods)
     assert vllm.run_id == "e1_reasoning_language_vllm"
 
@@ -97,6 +99,26 @@ def test_english_cot_on_translated_dataset_does_not_call_question_yoruba() -> No
     assert "Question:\nTiti has 3 books" in prompt.user
 
 
+def test_direct_prompt_omits_reasoning() -> None:
+    prompt = render_prompt(_math_example(), "direct")
+    assert "Reasoning:" not in prompt.user
+    assert "First translate the quantities" not in prompt.user
+    assert "Kọ́kọ́ túmọ̀ iye" not in prompt.user
+    assert "Answer directly without showing any reasoning" in prompt.user
+    assert "Question (Yoruba)" in prompt.user
+    # Yoruba math exemplar shown answer-only.
+    assert "Final answer: 3" in prompt.user
+
+
+def test_direct_prompt_on_translated_dataset_uses_english_exemplars() -> None:
+    prompt = render_prompt(_translated_math_example(), "direct")
+    assert "Reasoning:" not in prompt.user
+    assert "Answer directly without showing any reasoning" in prompt.user
+    assert "Question (Yoruba)" not in prompt.user
+    # English-input exemplars, shown answer-only.
+    assert "Tom has 5 bags" in prompt.user
+
+
 def test_extract_answer_from_translate_pivot_response() -> None:
     response = (
         "English translation: A father bought 2 boxes with 3 oranges each.\n"
@@ -107,11 +129,13 @@ def test_extract_answer_from_translate_pivot_response() -> None:
 
 
 if __name__ == "__main__":
-    test_e1_config_has_three_strategies()
+    test_e1_config_has_expected_strategies()
     test_e1_vllm_config_matches_experiment_with_openai_compatible()
     test_translate_pivot_instructs_translation()
     test_yoruba_cot_uses_yoruba_exemplar_reasoning()
     test_english_cot_uses_english_exemplar_reasoning()
     test_english_cot_on_translated_dataset_does_not_call_question_yoruba()
+    test_direct_prompt_omits_reasoning()
+    test_direct_prompt_on_translated_dataset_uses_english_exemplars()
     test_extract_answer_from_translate_pivot_response()
     print("ok")

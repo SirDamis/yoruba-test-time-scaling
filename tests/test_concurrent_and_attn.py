@@ -257,6 +257,8 @@ def test_e1_openrouter_config_has_cost_and_retry_settings() -> None:
         assert model.base_url == "https://openrouter.ai/api/v1"
         assert model.api_key_env == "OPENROUTER_API_KEY"
         assert model.backend_kwargs.get("max_retries") == 3
+    qwen = next(m for m in cfg.models if m.name == "qwen3-4b")
+    assert qwen.backend_kwargs.get("reasoning") == {"enabled": False}
 
 
 def test_e1_ramp_router_config_uses_responses_backend() -> None:
@@ -324,6 +326,7 @@ def test_responses_payload_and_output_extraction() -> None:
     assert "max_tokens" not in calls[0]
     assert result.response == "The answer is 42."
     assert result.token_count == 7
+    assert result.prompt_token_count == 10
     assert result.metadata["status"] == "completed"
 
 
@@ -377,6 +380,85 @@ def test_responses_no_reasoning_key_when_omitted() -> None:
             pass
     assert captured
     assert "reasoning" not in captured[0]
+
+
+def _capture_chat_payload(backend: OpenAICompatibleChatBackend) -> list[dict[str, object]]:
+    captured: list[dict[str, object]] = []
+
+    def capture(payload: dict[str, object]) -> dict[str, object]:
+        captured.append(payload)
+        return {
+            "choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}],
+            "usage": {"completion_tokens": 1},
+        }
+
+    with patch.object(backend, "_post_json", side_effect=capture):
+        backend.generate(
+            system_prompt="sys",
+            user_prompt="user",
+            temperature=0.0,
+            max_tokens=16,
+        )
+    return captured
+
+
+def test_chat_backend_forwards_reasoning_mapping() -> None:
+    backend = OpenAICompatibleChatBackend(
+        _openai_compatible_config(reasoning={"enabled": False})
+    )
+    captured = _capture_chat_payload(backend)
+    assert captured[0]["reasoning"] == {"enabled": False}
+
+
+def test_chat_backend_reasoning_bool_shorthand() -> None:
+    backend = OpenAICompatibleChatBackend(_openai_compatible_config(reasoning=True))
+    captured = _capture_chat_payload(backend)
+    assert captured[0]["reasoning"] == {"enabled": True}
+
+
+def test_chat_backend_no_reasoning_key_when_omitted() -> None:
+    backend = OpenAICompatibleChatBackend(_openai_compatible_config())
+    captured = _capture_chat_payload(backend)
+    assert "reasoning" not in captured[0]
+
+
+def test_chat_backend_tracks_prompt_tokens() -> None:
+    backend = OpenAICompatibleChatBackend(_openai_compatible_config())
+
+    def capture(payload: dict[str, object]) -> dict[str, object]:
+        return {
+            "choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 42, "completion_tokens": 7},
+        }
+
+    with patch.object(backend, "_post_json", side_effect=capture):
+        result = backend.generate(
+            system_prompt="sys",
+            user_prompt="user",
+            temperature=0.0,
+            max_tokens=16,
+        )
+    assert result.prompt_token_count == 42
+    assert result.token_count == 7
+
+
+def test_chat_backend_prompt_tokens_none_when_absent() -> None:
+    backend = OpenAICompatibleChatBackend(_openai_compatible_config())
+
+    def capture(payload: dict[str, object]) -> dict[str, object]:
+        return {
+            "choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}],
+            "usage": {"completion_tokens": 3},
+        }
+
+    with patch.object(backend, "_post_json", side_effect=capture):
+        result = backend.generate(
+            system_prompt="sys",
+            user_prompt="user",
+            temperature=0.0,
+            max_tokens=16,
+        )
+    assert result.prompt_token_count is None
 
 
 def test_urllib_transport_raises_transport_http_error() -> None:
@@ -461,6 +543,11 @@ if __name__ == "__main__":
     test_responses_extract_text_skips_reasoning_and_string_fallbacks()
     test_responses_backend_builds()
     test_responses_no_reasoning_key_when_omitted()
+    test_chat_backend_forwards_reasoning_mapping()
+    test_chat_backend_reasoning_bool_shorthand()
+    test_chat_backend_no_reasoning_key_when_omitted()
+    test_chat_backend_tracks_prompt_tokens()
+    test_chat_backend_prompt_tokens_none_when_absent()
     test_urllib_transport_raises_transport_http_error()
     test_curl_cffi_transport_used_when_impersonate_set()
     test_curl_cffi_transport_rejects_4xx()

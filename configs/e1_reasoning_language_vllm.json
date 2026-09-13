@@ -154,6 +154,15 @@
       "temperature": 0.0,
       "max_tokens": 1024,
       "reasoning_language": "en_pivot"
+    },
+    {
+      "name": "direct",
+      "prompt_style": "direct",
+      "selection": "first",
+      "n": 1,
+      "temperature": 0.0,
+      "max_tokens": 1024,
+      "reasoning_language": "none"
     }
   ],
   "max_concurrent": 8

@@ -7,6 +7,7 @@ Layout::
         english_cot.txt
         yoruba_cot.txt
         translate_pivot.txt
+        direct.txt
         best_of_n_cot.txt
       qa/
         ...
@@ -66,6 +67,7 @@ STYLES = [
     ("english_cot", "E1: Chain-of-Thought (English)"),
     ("yoruba_cot", "E1: Chain-of-Thought (Yoruba)"),
     ("translate_pivot", "E1: Translate Pivot (Yo→En reason)"),
+    ("direct", "E1: Direct answer (no CoT)"),
     ("best_of_n_cot", "Best-of-N CoT (English)"),
 ]
 

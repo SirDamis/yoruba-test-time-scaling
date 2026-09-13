@@ -478,6 +478,8 @@ def render_prompt(example: InferenceExample, prompt_style: str) -> PromptBundle:
         return render_yoruba_cot_prompt(example)
     if prompt_style == "translate_pivot":
         return render_translate_pivot_prompt(example)
+    if prompt_style == "direct":
+        return render_direct_prompt(example)
     raise ValueError(f"Unsupported prompt_style: {prompt_style!r}")
 
 
@@ -500,7 +502,10 @@ def render_exemplar_block(task: str | None, *, reasoning_mode: str) -> str:
                 "Choices:\n" + "\n".join(format_choices(ex.choices))
             )
 
-        if reasoning_mode == "translate":
+        if reasoning_mode == "direct":
+            # No-CoT control: show only the final answer line.
+            parts.append(f"Final answer: {ex.answer}")
+        elif reasoning_mode == "translate":
             parts.extend(
                 [
                     f"English translation:\n{ex.translated_question}",
@@ -591,14 +596,14 @@ def quantity_instruction(example: InferenceExample) -> str:
 def exemplar_task_for(example: InferenceExample, prompt_style: str) -> str | None:
     """Pick the exemplar set for this example × strategy.
 
-    - ``english_cot``: language-matched (Yoruba-question + English-reasoning)
-      exemplars for Yoruba inputs; English-question exemplars otherwise.
+    - ``english_cot`` / ``direct``: language-matched (Yoruba-question or
+      English-question) exemplars; ``direct`` only renders their final answers.
     - Native CoT and translate pivot have hand-written Yoruba exemplars only;
       other languages run zero-shot (empty exemplar block).
     """
     base = "math" if example.task == "math" else "qa"
     lang = example_language(example)
-    if prompt_style == "english_cot":
+    if prompt_style in {"english_cot", "direct"}:
         return base if lang == "yor" else f"{base}_en"
     return base if lang == "yor" else None
 
@@ -629,6 +634,38 @@ def render_english_cot_prompt(example: InferenceExample) -> PromptBundle:
         system=common_system_prompt(example),
         user=user,
     )
+
+def render_direct_prompt(example: InferenceExample) -> PromptBundle:
+    """Direct-answer control: no chain-of-thought, just the final answer.
+
+    Acts as the comprehension/prior floor for E1: comparing it against the CoT
+    arms separates a model that cannot read the question from one whose
+    reasoning degrades. Exemplars are language-matched but shown answer-only.
+    """
+    exemplar_block = render_exemplar_block(
+        exemplar_task_for(example, "direct"),
+        reasoning_mode="direct",
+    )
+
+    user = "\n\n".join(
+        [
+            f"{exemplar_block}{render_problem_block(example, question_label=question_label(example))}",
+            render_answer_format(example),
+            (
+                "Instructions:\n"
+                "- Use the examples only as formatting guides, not as source facts.\n"
+                "- Answer directly without showing any reasoning or steps.\n"
+                "- Finish with exactly one line:\n"
+                "Final answer: <answer>"
+            ),
+        ]
+    )
+
+    return PromptBundle(
+        system=common_system_prompt(example),
+        user=user,
+    )
+
 
 def render_yoruba_cot_prompt(example: InferenceExample) -> PromptBundle:
     """Native-language CoT: question, reasoning, and answer all in the task language.

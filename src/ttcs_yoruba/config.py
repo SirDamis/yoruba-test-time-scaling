@@ -11,6 +11,7 @@ SUPPORTED_PROMPT_STYLES = {
     "english_cot",
     "yoruba_cot",
     "translate_pivot",
+    "direct",
     "best_of_n_cot",
 }
 SUPPORTED_SELECTIONS = {"first", "majority_vote"}
@@ -21,6 +22,8 @@ PROMPT_STYLE_REASONING_LANGUAGE = {
     "english_cot": "en",
     "best_of_n_cot": "en",
     "translate_pivot": "en_pivot",
+    # Direct answers show no reasoning; tag it so the control arm is filterable.
+    "direct": "none",
 }
 
 

@@ -41,6 +41,27 @@ def test_e0_vllm_config_mirrors_hf() -> None:
     ]
 
 
+def test_e0_openrouter_config() -> None:
+    cfg = load_inference_run_config(ROOT / "configs" / "e0_english_baseline_openrouter.json")
+    _assert_e0_scope(cfg)
+    assert cfg.run_id == "e0_english_baseline_openrouter"
+    assert cfg.max_concurrent == 4
+    assert {m.name for m in cfg.models} == {
+        "qwen3-4b",
+        "qwen3-8b",
+        "gemma3-4b",
+        "llama3.2-3b",
+    }
+    for model in cfg.models:
+        assert model.backend == "openai_compatible"
+        assert model.base_url == "https://openrouter.ai/api/v1"
+        assert model.api_key_env == "OPENROUTER_API_KEY"
+        assert model.backend_kwargs.get("max_retries") == 3
+    for name in ("qwen3-4b", "qwen3-8b"):
+        qwen = next(m for m in cfg.models if m.name == name)
+        assert qwen.backend_kwargs.get("reasoning") == {"enabled": False}
+
+
 def test_e0_ramp_router_config() -> None:
     from ttcs_yoruba.inference import effective_max_concurrent
 
@@ -74,6 +95,7 @@ def test_e0_matches_e1_decode_settings() -> None:
 if __name__ == "__main__":
     test_e0_hf_config()
     test_e0_vllm_config_mirrors_hf()
+    test_e0_openrouter_config()
     test_e0_ramp_router_config()
     test_e0_matches_e1_decode_settings()
     print("ok")

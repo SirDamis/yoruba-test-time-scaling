@@ -43,6 +43,21 @@ def _completion_token_count(
     return max(1, len(str(content or "").split()))
 
 
+def _optional_int(value: Any) -> int | None:
+    """Parse a non-negative int from a provider field; None when absent/invalid.
+
+    Used for prompt tokens, which are reported by providers but must not be
+    estimated when missing (an estimate would corrupt cost comparisons).
+    """
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        count = int(value)
+    except (TypeError, ValueError):
+        return None
+    return count if count >= 0 else None
+
+
 @dataclass(frozen=True)
 class _TransportHTTPError(Exception):
     """Normalized HTTP error from any transport (urllib or curl_cffi)."""
@@ -187,6 +202,7 @@ class TransformersChatBackend(InferenceBackend):
             response=response,
             token_count=completion_tokens,
             latency_s=time.monotonic() - started,
+            prompt_token_count=input_token_count,
             metadata={
                 "input_tokens": input_token_count,
                 "completion_tokens": completion_tokens,
@@ -512,6 +528,19 @@ class OpenAICompatibleChatBackend(_OpenAIHTTPMixin, InferenceBackend):
             payload["seed"] = seed
         if top_p is not None:
             payload["top_p"] = top_p
+        # Unified OpenRouter reasoning control. A mapping is forwarded verbatim
+        # (e.g. {"enabled": false} or {"effort": "low"}); a bool is shorthand for
+        # {"enabled": <bool>}. Omitted leaves provider defaults untouched.
+        reasoning = self.config.backend_kwargs.get("reasoning")
+        if isinstance(reasoning, Mapping):
+            payload["reasoning"] = dict(reasoning)
+        elif isinstance(reasoning, bool):
+            payload["reasoning"] = {"enabled": reasoning}
+        elif reasoning is not None:
+            raise BackendError(
+                "backend_kwargs.reasoning must be a mapping (e.g. {'enabled': false}) "
+                "or a bool"
+            )
         payload.update(dict(self.config.backend_kwargs.get("extra_body", {})))
 
         response = self._post_json(payload)
@@ -532,6 +561,7 @@ class OpenAICompatibleChatBackend(_OpenAIHTTPMixin, InferenceBackend):
             response=str(content),
             token_count=token_count,
             latency_s=float(response.get("_latency_s", 0.0)),
+            prompt_token_count=_optional_int(usage.get("prompt_tokens")),
             metadata={"usage": usage, "finish_reason": first_choice.get("finish_reason")},
         )
 
@@ -593,6 +623,7 @@ class OpenAIResponsesBackend(_OpenAIHTTPMixin, InferenceBackend):
             response=str(content),
             token_count=token_count,
             latency_s=float(response.get("_latency_s", 0.0)),
+            prompt_token_count=_optional_int(usage.get("input_tokens")),
             metadata={"usage": usage, "status": response.get("status")},
         )
 

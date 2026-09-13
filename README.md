@@ -52,6 +52,7 @@ English question → English CoT → answer on the native `eng` splits of the sa
 ```bash
 uv run python scripts/run_inference.py --config configs/e0_english_baseline.json            # HF
 uv run python scripts/run_inference.py --config configs/e0_english_baseline_vllm.json       # vLLM
+uv run python scripts/run_inference.py --config configs/e0_english_baseline_openrouter.json  # OpenRouter
 uv run python scripts/run_inference.py --config configs/e0_english_baseline_ramp_router.json # Ramp Router
 ```
 

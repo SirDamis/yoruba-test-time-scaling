@@ -1,0 +1,113 @@
+{
+  "run_id": "e0_english_baseline_openrouter",
+  "output_dir": "runs",
+  "seed": 20260708,
+  "default_request_timeout_s": 180,
+  "continue_on_error": false,
+  "max_concurrent": 4,
+  "datasets": [
+    {
+      "name": "afrimgsm_eng",
+      "path": "data/normalized/math-reasoning/afrimgsm_eng/test.jsonl",
+      "task": "math",
+      "source_dataset": "afrimgsm_eng"
+    },
+    {
+      "name": "afrimmlu_eng",
+      "path": "data/normalized/question-answering/afrimmlu_eng/test.jsonl",
+      "task": "qa",
+      "source_dataset": "afrimmlu_eng"
+    }
+  ],
+  "models": [
+    {
+      "name": "qwen3-4b",
+      "backend": "openai_compatible",
+      "model": "qwen/qwen3-4b",
+      "size_label": "4B",
+      "cost_per_1k_tokens": 0.0,
+      "base_url": "https://openrouter.ai/api/v1",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "backend_kwargs": {
+        "send_seed": true,
+        "reasoning": {
+          "enabled": false
+        },
+        "max_retries": 3,
+        "retry_initial_backoff_s": 1.0,
+        "retry_max_backoff_s": 30.0,
+        "headers": {
+          "X-OpenRouter-Title": "Yoruba TTCS"
+        }
+      }
+    },
+    {
+      "name": "qwen3-8b",
+      "backend": "openai_compatible",
+      "model": "qwen/qwen3-8b",
+      "size_label": "8B",
+      "cost_per_1k_tokens": 0.0,
+      "base_url": "https://openrouter.ai/api/v1",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "backend_kwargs": {
+        "send_seed": true,
+        "reasoning": {
+          "enabled": false
+        },
+        "max_retries": 3,
+        "retry_initial_backoff_s": 1.0,
+        "retry_max_backoff_s": 30.0,
+        "headers": {
+          "X-OpenRouter-Title": "Yoruba TTCS"
+        }
+      }
+    },
+    {
+      "name": "gemma3-4b",
+      "backend": "openai_compatible",
+      "model": "google/gemma-3-4b-it",
+      "size_label": "4B",
+      "cost_per_1k_tokens": 0.0,
+      "base_url": "https://openrouter.ai/api/v1",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "backend_kwargs": {
+        "send_seed": true,
+        "max_retries": 3,
+        "retry_initial_backoff_s": 1.0,
+        "retry_max_backoff_s": 30.0,
+        "headers": {
+          "X-OpenRouter-Title": "Yoruba TTCS"
+        }
+      }
+    },
+    {
+      "name": "llama3.2-3b",
+      "backend": "openai_compatible",
+      "model": "meta-llama/llama-3.2-3b-instruct",
+      "size_label": "3B",
+      "cost_per_1k_tokens": 0.0,
+      "base_url": "https://openrouter.ai/api/v1",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "backend_kwargs": {
+        "send_seed": true,
+        "max_retries": 3,
+        "retry_initial_backoff_s": 1.0,
+        "retry_max_backoff_s": 30.0,
+        "headers": {
+          "X-OpenRouter-Title": "Yoruba TTCS"
+        }
+      }
+    }
+  ],
+  "methods": [
+    {
+      "name": "english_cot",
+      "prompt_style": "english_cot",
+      "selection": "first",
+      "n": 1,
+      "temperature": 0.0,
+      "max_tokens": 1024,
+      "reasoning_language": "en"
+    }
+  ]
+}

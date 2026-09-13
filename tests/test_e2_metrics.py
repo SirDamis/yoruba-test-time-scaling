@@ -63,6 +63,7 @@ def test_aggregate_run_dir_pass_select_and_tokens(tmp_path: Path) -> None:
                 "sample_index": sample_index,
                 "extracted_answer": answer,
                 "token_count": 10 + sample_index,
+                "prompt_token_count": 20,
                 "latency_s": 0.5,
                 "estimated_cost": 0.0,
                 "metadata": {
@@ -87,6 +88,7 @@ def test_aggregate_run_dir_pass_select_and_tokens(tmp_path: Path) -> None:
                 "sample_index": sample_index,
                 "extracted_answer": "0",
                 "token_count": 5,
+                "prompt_token_count": 20,
                 "latency_s": 0.25,
                 "estimated_cost": 0.0,
                 "metadata": {
@@ -139,12 +141,48 @@ def test_aggregate_run_dir_pass_select_and_tokens(tmp_path: Path) -> None:
     assert m.accuracy == 0.5
     assert m.pass_at_n_rate == 0.5
     assert m.total_tokens == (10 + 11 + 12 + 13) + (5 * 4)
+    assert m.total_prompt_tokens == 20 * 8
+    assert m.mean_prompt_tokens_per_example == 80
     assert m.mean_tokens_per_example == m.total_tokens / 2
 
     csv_path = tmp_path / "metrics.csv"
     write_metrics_csv(csv_path, metrics)
     assert csv_path.exists()
     assert "accuracy" in csv_path.read_text(encoding="utf-8")
+
+
+def test_aggregate_run_dir_counts_empty_extractions(tmp_path: Path) -> None:
+    """Empty extracted answers are tallied separately from wrong answers."""
+    run_dir = tmp_path / "run_empty"
+    run_dir.mkdir()
+    candidates = [
+        {
+            "example_id": "ex1",
+            "model": "qwen3-4b",
+            "model_size_label": "4B",
+            "method": "english_cot_ttc_n2",
+            "prompt_style": "english_cot",
+            "reasoning_language": "en",
+            "selection": "majority_vote",
+            "n": 2,
+            "sample_index": sample_index,
+            "extracted_answer": "" if sample_index == 0 else "11",
+            "token_count": 5,
+            "latency_s": 0.1,
+            "estimated_cost": 0.0,
+            "metadata": {"dataset": "afrimgsm", "gold_answer": "11", "answer_type": "number"},
+        }
+        for sample_index in range(2)
+    ]
+    _write_jsonl(run_dir / "candidates.jsonl", candidates)
+    _write_jsonl(run_dir / "selections.jsonl", [])
+    (run_dir / "manifest.json").write_text(json.dumps({"run_id": "run_empty"}), encoding="utf-8")
+
+    m = aggregate_run_dir(run_dir)[0]
+    assert m.total_candidates == 2
+    assert m.empty_extraction_candidates == 1
+    assert m.empty_extraction_rate == 0.5
+    assert m.to_dict()["empty_extraction_candidates"] == 1
 
 
 def test_bon_uses_e1_prompt_styles() -> None:
@@ -175,5 +213,7 @@ if __name__ == "__main__":
     test_e2_config_expands_n_sweep_with_greedy_n1()
     with tempfile.TemporaryDirectory() as td:
         test_aggregate_run_dir_pass_select_and_tokens(P(td))
+    with tempfile.TemporaryDirectory() as td:
+        test_aggregate_run_dir_counts_empty_extractions(P(td))
     test_bon_uses_e1_prompt_styles()
     print("ok")

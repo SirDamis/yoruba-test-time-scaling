@@ -1144,6 +1144,7 @@ def run_example_candidates(
             response=output.response,
             extracted_answer=extracted,
             token_count=output.token_count,
+            prompt_token_count=output.prompt_token_count,
             latency_s=output.latency_s,
             estimated_cost=(
                 provider_cost

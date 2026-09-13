@@ -90,6 +90,9 @@
       "api_key_env": "OPENROUTER_API_KEY",
       "backend_kwargs": {
         "send_seed": true,
+        "reasoning": {
+          "enabled": false
+        },
         "max_retries": 3,
         "retry_initial_backoff_s": 1.0,
         "retry_max_backoff_s": 30.0,
@@ -180,6 +183,15 @@
       "temperature": 0.0,
       "max_tokens": 1024,
       "reasoning_language": "en_pivot"
+    },
+    {
+      "name": "direct",
+      "prompt_style": "direct",
+      "selection": "first",
+      "n": 1,
+      "temperature": 0.0,
+      "max_tokens": 1024,
+      "reasoning_language": "none"
     }
   ]
 }

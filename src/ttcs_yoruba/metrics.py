@@ -28,7 +28,9 @@ class ConditionMetrics:
     pass_at_n_correct: int = 0
     total_candidates: int = 0
     truncated_candidates: int = 0
+    empty_extraction_candidates: int = 0
     total_tokens: int = 0
+    total_prompt_tokens: int = 0
     total_latency_s: float = 0.0
     total_estimated_cost: float = 0.0
     run_ids: list[str] = field(default_factory=list)
@@ -53,8 +55,23 @@ class ConditionMetrics:
         return self.truncated_candidates / self.total_candidates
 
     @property
+    def empty_extraction_rate(self) -> float | None:
+        """Fraction of candidates with no extracted answer (failed/garbled format)."""
+        if not self.total_candidates:
+            return None
+        return self.empty_extraction_candidates / self.total_candidates
+
+    @property
     def mean_tokens_per_example(self) -> float:
         return self.total_tokens / self.total_examples if self.total_examples else 0.0
+
+    @property
+    def mean_prompt_tokens_per_example(self) -> float:
+        return (
+            self.total_prompt_tokens / self.total_examples
+            if self.total_examples
+            else 0.0
+        )
 
     @property
     def mean_latency_s_per_example(self) -> float:
@@ -85,8 +102,12 @@ class ConditionMetrics:
             "total_candidates": self.total_candidates,
             "truncated_candidates": self.truncated_candidates,
             "truncation_rate": self.truncation_rate,
+            "empty_extraction_candidates": self.empty_extraction_candidates,
+            "empty_extraction_rate": self.empty_extraction_rate,
             "total_tokens": self.total_tokens,
+            "total_prompt_tokens": self.total_prompt_tokens,
             "mean_tokens_per_example": self.mean_tokens_per_example,
+            "mean_prompt_tokens_per_example": self.mean_prompt_tokens_per_example,
             "total_latency_s": self.total_latency_s,
             "mean_latency_s_per_example": self.mean_latency_s_per_example,
             "total_estimated_cost": self.total_estimated_cost,
@@ -250,10 +271,12 @@ def aggregate_run_dir(run_dir: Path) -> list[ConditionMetrics]:
     )
     condition_meta: dict[tuple[str, str, str, int], dict[str, Any]] = {}
     token_totals: dict[tuple[str, str, str, int], int] = defaultdict(int)
+    prompt_token_totals: dict[tuple[str, str, str, int], int] = defaultdict(int)
     latency_totals: dict[tuple[str, str, str, int], float] = defaultdict(float)
     cost_totals: dict[tuple[str, str, str, int], float] = defaultdict(float)
     candidate_counts: dict[tuple[str, str, str, int], int] = defaultdict(int)
     truncated_counts: dict[tuple[str, str, str, int], int] = defaultdict(int)
+    empty_extraction_counts: dict[tuple[str, str, str, int], int] = defaultdict(int)
 
     for row in candidates:
         key = condition_key_from_candidate(row)
@@ -263,7 +286,10 @@ def aggregate_run_dir(run_dir: Path) -> list[ConditionMetrics]:
         row_meta = row.get("metadata") or {}
         if str(row_meta.get("finish_reason") or "") == "length":
             truncated_counts[key] += 1
+        if not str(row.get("extracted_answer", "")).strip():
+            empty_extraction_counts[key] += 1
         token_totals[key] += int(row.get("token_count") or 0)
+        prompt_token_totals[key] += int(row.get("prompt_token_count") or 0)
         latency_totals[key] += float(row.get("latency_s") or 0.0)
         cost_totals[key] += float(row.get("estimated_cost") or 0.0)
         if key not in condition_meta:
@@ -340,7 +366,9 @@ def aggregate_run_dir(run_dir: Path) -> list[ConditionMetrics]:
             pass_at_n_correct=pass_correct,
             total_candidates=candidate_counts.get(key, 0),
             truncated_candidates=truncated_counts.get(key, 0),
+            empty_extraction_candidates=empty_extraction_counts.get(key, 0),
             total_tokens=token_totals.get(key, 0),
+            total_prompt_tokens=prompt_token_totals.get(key, 0),
             total_latency_s=latency_totals.get(key, 0.0),
             total_estimated_cost=cost_totals.get(key, 0.0),
             run_ids=[run_id],
@@ -365,7 +393,9 @@ def _clone_condition_metrics(item: ConditionMetrics) -> ConditionMetrics:
         pass_at_n_correct=item.pass_at_n_correct,
         total_candidates=item.total_candidates,
         truncated_candidates=item.truncated_candidates,
+        empty_extraction_candidates=item.empty_extraction_candidates,
         total_tokens=item.total_tokens,
+        total_prompt_tokens=item.total_prompt_tokens,
         total_latency_s=item.total_latency_s,
         total_estimated_cost=item.total_estimated_cost,
         run_ids=list(item.run_ids),
@@ -389,7 +419,9 @@ def _add_into(acc: ConditionMetrics, item: ConditionMetrics) -> None:
     acc.pass_at_n_correct += item.pass_at_n_correct
     acc.total_candidates += item.total_candidates
     acc.truncated_candidates += item.truncated_candidates
+    acc.empty_extraction_candidates += item.empty_extraction_candidates
     acc.total_tokens += item.total_tokens
+    acc.total_prompt_tokens += item.total_prompt_tokens
     acc.total_latency_s += item.total_latency_s
     acc.total_estimated_cost += item.total_estimated_cost
     for rid in item.run_ids:

@@ -128,6 +128,7 @@ class BackendOutput:
     response: str
     token_count: int
     latency_s: float
+    prompt_token_count: int | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -151,6 +152,7 @@ class CandidateRecord:
     token_count: int
     latency_s: float
     estimated_cost: float
+    prompt_token_count: int | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
