@@ -89,8 +89,7 @@ def main() -> None:
         type=int,
         default=None,
         help=(
-            "Max in-flight generations for openai_compatible/vLLM (overrides config). "
-            "Transformers backend always uses 1."
+            "Max in-flight generations for openai_compatible/vLLM (overrides config)."
         ),
     )
     args = parser.parse_args()

@@ -374,11 +374,8 @@ def write_unit_batch(
 
 
 def effective_max_concurrent(config: InferenceRunConfig, model: InferenceModelConfig) -> int:
-    """Concurrency for this model. Transformers generate is not thread-safe → 1."""
-    requested = max(1, int(config.max_concurrent))
-    if model.backend == "transformers" and requested > 1:
-        return 1
-    return requested
+    """Concurrency for this model."""
+    return max(1, int(config.max_concurrent))
 
 
 def run_concurrent_map(
@@ -670,11 +667,9 @@ def run_inference_pipeline(
                 )
                 model_load_started = time.monotonic()
                 backend = build_backend(model, default_timeout_s=config.default_request_timeout_s)
-                attn = getattr(backend, "attn_implementation", None)
-                attn_msg = f"  attn={attn}" if attn else ""
                 log_progress(
                     f"[{config.run_id}] model ready={model.name}  "
-                    f"load_s={time.monotonic() - model_load_started:.1f}{attn_msg}",
+                    f"load_s={time.monotonic() - model_load_started:.1f}",
                     enabled=progress,
                 )
 

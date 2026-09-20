@@ -32,17 +32,17 @@ TASK_EXEMPLARS: dict[str, list[Exemplar]] = {
             ),
             choices=None,
             reasoning_en=(
-                "First translate the quantities: total mangoes = 15, children = 5. "
-                "Shared equally: 15 / 5 = 3. Each child gets 3 mangoes."
+                "There are 15 eggs and 5 children. Sharing equally means "
+                "15 / 5 = 3, so each child gets 3 eggs."
             ),
             reasoning_yo=(
-                "Kọ́kọ́ túmọ̀ iye náà: ẹyìn àpapọ̀ = 15, ọmọ = 5. "
-                "Pínpín dọ́gba: 15 / 5 = 3. Ọmọ kọ̀ọ̀kan gba ẹyìn 3."
+                "Ẹyìn 15 ni ó wà, ọmọ 5 ni a pín wọn fún. Pínpín dọ́gba: "
+                "15 / 5 = 3, nítorí náà ọmọ kọ̀ọ̀kan gba ẹyìn 3."
             ),
             answer="3",
             translated_question=(
-                "Mama Nila has 15 mangoes. She shares them equally among "
-                "her 5 children. How many mangoes does each child get?"
+                "Mama Nila has 15 eggs. She shares them equally among "
+                "her 5 children. How many eggs does each child get?"
             ),
         ),
         Exemplar(
@@ -52,12 +52,12 @@ TASK_EXEMPLARS: dict[str, list[Exemplar]] = {
             ),
             choices=None,
             reasoning_en=(
-                "First translate the quantities: rows = 4, onions per row = 12. "
-                "Total onions = 4 * 12 = 48."
+                "The farmer has 4 rows with 12 onions in each row. "
+                "Multiply: 4 * 12 = 48 onions in total."
             ),
             reasoning_yo=(
-                "Kọ́kọ́ túmọ̀ iye náà: àpá = 4, àlùbósà ní àpá kọ̀ọ̀kan = 12. "
-                "Àpapọ̀ àlùbósà = 4 × 12 = 48."
+                "Àpá 4 ni agbẹ̀ náà gbìn, àlùbósà 12 sì wà ní àpá kọ̀ọ̀kan. "
+                "Ìlọ́po: 4 × 12 = 48 àlùbósà lápapọ̀."
             ),
             answer="48",
             translated_question=(
@@ -73,13 +73,13 @@ TASK_EXEMPLARS: dict[str, list[Exemplar]] = {
             ),
             choices=None,
             reasoning_en=(
-                "First translate the quantities: saves 150 per week for 8 weeks, so savings = 150 * 8 = 1,200. "
-                "He spends 400 on a battery: remaining = 1,200 - 400 = 800."
+                "He saves 150 naira each week, so after 8 weeks he has "
+                "150 * 8 = 1,200 naira. After buying the 400-naira battery, "
+                "1,200 - 400 = 800 naira remain."
             ),
             reasoning_yo=(
-                "Kọ́kọ́ túmọ̀ iye náà: ó pa 150 wọ kọ̀ọ̀kan ọ̀sẹ̀ fún ọ̀sẹ̀ 8, "
-                "nítorí náà àpapọ̀ = 150 × 8 = 1,200. "
-                "Ó ná 400 lórí bátìrí: èyí tó kù = 1,200 - 400 = 800."
+                "Ó ń pa 150 wọ̀ ní ọ̀sẹ̀ kọ̀ọ̀kan, nítorí náà ní ọ̀sẹ̀ 8 ó ní "
+                "150 × 8 = 1,200. Lẹ́yìn tí ó ra bátìrí 400, 1,200 - 400 = 800 ló kù."
             ),
             answer="800",
             translated_question=(
@@ -95,13 +95,12 @@ TASK_EXEMPLARS: dict[str, list[Exemplar]] = {
             ),
             choices=None,
             reasoning_en=(
-                "First translate the quantities: books cost 3 * 450 = 1,350. "
-                "Adding the pen: 1,350 + 50 = 1,400. Total spent = 1,400 naira."
+                "The 3 books cost 3 * 450 = 1,350 naira. Adding the 50-naira "
+                "pen gives 1,350 + 50 = 1,400 naira in total."
             ),
             reasoning_yo=(
-                "Kọ́kọ́ túmọ̀ iye náà: iye ìwé = 3 × 450 = 1,350. "
-                "Fí iye pẹ̄nù kún un: 1,350 + 50 = 1,400. "
-                "Àpapọ̀ owó tí ó ná = 1,400."
+                "Ìwé 3 ná 3 × 450 = 1,350. Ní kíkún pẹ̄nù 50 kún un, "
+                "1,350 + 50 = 1,400 lápapọ̀."
             ),
             answer="1400",
             translated_question=(

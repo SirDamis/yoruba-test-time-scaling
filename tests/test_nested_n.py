@@ -73,7 +73,7 @@ def test_expand_without_nested_has_no_group() -> None:
 
 
 def test_e2_config_is_nested() -> None:
-    cfg = load_inference_run_config(ROOT / "configs" / "e2_ttc_scaling.json")
+    cfg = load_inference_run_config(ROOT / "configs" / "e2_ttc_scaling_vllm.json")
     assert all(m.nested_group_id == "english_cot_ttc" for m in cfg.methods)
     assert max(m.n for m in cfg.methods) == 64
 
@@ -207,7 +207,7 @@ def test_nested_pipeline_greedy_n1_plus_pool(monkeypatch=None) -> None:
                 models=[
                     InferenceModelConfig(
                         name="fake",
-                        backend="transformers",
+                        backend="openai_compatible",
                         model="fake",
                         size_label="0B",
                     )
@@ -310,7 +310,7 @@ def test_nested_without_greedy_n1_uses_first_of_pool() -> None:
                 models=[
                     InferenceModelConfig(
                         name="fake",
-                        backend="transformers",
+                        backend="openai_compatible",
                         model="fake",
                         size_label="0B",
                     )

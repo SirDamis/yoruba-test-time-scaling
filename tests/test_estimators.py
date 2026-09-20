@@ -35,6 +35,8 @@ def _nested_cand(example_id: str, sample_index: int, answer: str, gold: str) -> 
         "n": 4,
         "sample_index": sample_index,
         "extracted_answer": answer,
+        "token_count": 10,
+        "prompt_token_count": 20,
         "metadata": {
             "dataset": "d",
             "answer_type": "number",
@@ -89,6 +91,13 @@ def test_nested_pool_estimates_synthetic() -> None:
     assert rows[4]["maj_at_k_mean"] == pytest.approx(0.5)
     assert rows[4]["degenerate_pool_rate"] == 0.0
     assert rows[1]["distinct_answers_mean"] == pytest.approx(3.0)  # mean(2, 4)
+    # Token tracking: 10 completion / 20 prompt per sample.
+    assert rows[4]["mean_completion_tokens_per_sample"] == pytest.approx(10.0)
+    assert rows[4]["completion_tokens_per_example_at_k"] == pytest.approx(40.0)
+    assert rows[4]["prompt_tokens_per_example_at_k"] == pytest.approx(80.0)
+    assert rows[4]["total_tokens_per_example_at_k"] == pytest.approx(120.0)
+    # maj@4 = 0.5 -> tokens per correct = 40 / 0.5 = 80
+    assert rows[4]["completion_tokens_per_correct"] == pytest.approx(80.0)
 
 
 if __name__ == "__main__":

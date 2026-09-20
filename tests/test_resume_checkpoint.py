@@ -102,7 +102,7 @@ def _make_config(root: Path, data_path: Path, methods: list) -> InferenceRunConf
         models=[
             InferenceModelConfig(
                 name="fake",
-                backend="transformers",
+                backend="openai_compatible",
                 model="fake",
                 size_label="0B",
             )

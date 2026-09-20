@@ -42,6 +42,48 @@
       }
     },
     {
+      "name": "qwen3.5-4b",
+      "backend": "responses_api",
+      "model": "qwen/qwen3.5-4b",
+      "size_label": "4B",
+      "cost_per_1k_tokens": 0.0,
+      "base_url": "https://api.router.com/v1",
+      "api_key_env": "ROUTER_KEY",
+      "backend_kwargs": {
+        "send_seed": true,
+        "max_retries": 3,
+        "retry_initial_backoff_s": 1.0,
+        "retry_max_backoff_s": 30.0,
+        "headers": {
+          "X-Request-Id": "yoruba-ttcs",
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+        },
+        "reasoning_effort": "none",
+        "impersonate": "chrome"
+      }
+    },
+    {
+      "name": "qwen3.5-9b",
+      "backend": "responses_api",
+      "model": "qwen/qwen3.5-9b",
+      "size_label": "9B",
+      "cost_per_1k_tokens": 0.0,
+      "base_url": "https://api.router.com/v1",
+      "api_key_env": "ROUTER_KEY",
+      "backend_kwargs": {
+        "send_seed": true,
+        "max_retries": 3,
+        "retry_initial_backoff_s": 1.0,
+        "retry_max_backoff_s": 30.0,
+        "headers": {
+          "X-Request-Id": "yoruba-ttcs",
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+        },
+        "reasoning_effort": "none",
+        "impersonate": "chrome"
+      }
+    },
+    {
       "name": "gemma3-4b",
       "backend": "responses_api",
       "model": "google/gemma-3-4b-it",
@@ -88,6 +130,27 @@
       "backend": "responses_api",
       "model": "accounts/fireworks/models/deepseek-v4-flash-0731",
       "size_label": "248B-13B",
+      "cost_per_1k_tokens": 0.0,
+      "base_url": "https://api.router.com/v1",
+      "api_key_env": "ROUTER_KEY",
+      "backend_kwargs": {
+        "send_seed": true,
+        "max_retries": 3,
+        "retry_initial_backoff_s": 1.0,
+        "retry_max_backoff_s": 30.0,
+        "headers": {
+          "X-Request-Id": "yoruba-ttcs",
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+        },
+        "reasoning_effort": "none",
+        "impersonate": "chrome"
+      }
+    },
+    {
+      "name": "deepseek-v4.1-flash",
+      "backend": "responses_api",
+      "model": "accounts/fireworks/models/deepseek-v4.1-flash",
+      "size_label": "v4.1-flash",
       "cost_per_1k_tokens": 0.0,
       "base_url": "https://api.router.com/v1",
       "api_key_env": "ROUTER_KEY",

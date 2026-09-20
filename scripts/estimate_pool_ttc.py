@@ -68,13 +68,17 @@ def print_table(rows: list[dict]) -> None:
         "pass@k",
         "maj@k",
         "maj_sd",
+        "gen/samp",
+        "gen/ex",
+        "gen/corr",
         "distinct",
         "degen%",
     ]
-    widths = [12, 12, 20, 5, 4, 5, 8, 8, 7, 9, 7]
+    widths = [12, 12, 20, 5, 4, 5, 8, 8, 7, 8, 7, 8, 9, 7]
     print("\n" + "  ".join(h.ljust(w) for h, w in zip(headers, widths)))
     print("-" * (sum(widths) + 2 * len(widths)))
     for r in rows:
+        tpc = r.get("completion_tokens_per_correct")
         print(
             "  ".join(
                 [
@@ -87,8 +91,11 @@ def print_table(rows: list[dict]) -> None:
                     f"{r['pass_at_k']:.1%}".rjust(widths[6]),
                     f"{r['maj_at_k_mean']:.1%}".rjust(widths[7]),
                     f"{r['maj_at_k_subset_std_mean']:.3f}".rjust(widths[8]),
-                    f"{r['distinct_answers_mean']:.2f}".rjust(widths[9]),
-                    f"{r['degenerate_pool_rate']:.1%}".rjust(widths[10]),
+                    f"{r['mean_completion_tokens_per_sample']:.1f}".rjust(widths[9]),
+                    f"{r['completion_tokens_per_example_at_k']:.1f}".rjust(widths[10]),
+                    ("—" if tpc is None else f"{tpc:.1f}").rjust(widths[11]),
+                    f"{r['distinct_answers_mean']:.2f}".rjust(widths[12]),
+                    f"{r['degenerate_pool_rate']:.1%}".rjust(widths[13]),
                 ]
             )
         )

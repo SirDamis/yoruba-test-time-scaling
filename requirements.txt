@@ -1,10 +1,3 @@
-torch>=2.3
-transformers>=4.45,<5
-accelerate>=0.33
-datasets>=2.20
-sentencepiece>=0.2
-protobuf>=4.25
-safetensors>=0.4
 matplotlib>=3.8
 python-dotenv>=1.0
 # Browser TLS impersonation for endpoints behind Cloudflare Browser Integrity
@@ -19,6 +12,3 @@ curl-cffi>=0.9
 # vLLM ships its own efficient attention kernels (FlashAttention-class + PagedAttention).
 # Compiling flash-attn often needs >>16–30GB RAM and is unnecessary for
 # configs/*_vllm.json.
-#
-# Transformers-only runs (configs/e1_reasoning_language.json etc.) use
-# attn_implementation=auto → SDPA by default; FA2 is optional and not required.

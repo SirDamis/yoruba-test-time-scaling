@@ -20,7 +20,6 @@ from ttcs_yoruba.backends import (
     OpenAICompatibleChatBackend,
     OpenAIResponsesBackend,
     build_backend,
-    resolve_attn_implementation,
 )
 from ttcs_yoruba.config import InferenceModelConfig, InferenceRunConfig, load_inference_run_config
 from ttcs_yoruba.inference import (
@@ -71,17 +70,7 @@ def test_run_concurrent_map_tolerant_keeps_successes_on_partial_failure() -> Non
     assert "fail-2" in str(errors[0][1])
 
 
-def test_effective_max_concurrent_clamps_transformers() -> None:
-    cfg = InferenceRunConfig(
-        run_id="t",
-        output_dir=Path("runs"),
-        datasets=[],
-        models=[],
-        methods=[],
-        max_concurrent=16,
-    )
-    # Bypass empty validation by constructing partially — use replace-style via object.__new__?
-    # Build from dict instead.
+def test_effective_max_concurrent_uses_configured_value() -> None:
     from ttcs_yoruba.config import DatasetConfig, InferenceMethodConfig
 
     cfg = InferenceRunConfig(
@@ -92,7 +81,7 @@ def test_effective_max_concurrent_clamps_transformers() -> None:
         ],
         models=[
             InferenceModelConfig(
-                name="m", backend="transformers", model="x", size_label="4B"
+                name="m", backend="openai_compatible", model="x", size_label="4B"
             )
         ],
         methods=[
@@ -105,64 +94,18 @@ def test_effective_max_concurrent_clamps_transformers() -> None:
         ],
         max_concurrent=16,
     )
-    assert effective_max_concurrent(cfg, cfg.models[0]) == 1
-    oai = InferenceModelConfig(
-        name="m",
-        backend="openai_compatible",
-        model="x",
-        size_label="4B",
-        base_url_env="OPENAI_COMPATIBLE_BASE_URL",
-        api_key_env="OPENAI_COMPATIBLE_API_KEY",
-    )
-    assert effective_max_concurrent(cfg, oai) == 16
-
-
-def test_resolve_attn_auto_cpu_or_fallback() -> None:
-    class _Cuda:
-        @staticmethod
-        def is_available() -> bool:
-            return False
-
-    class _Torch:
-        cuda = _Cuda()
-
-    assert resolve_attn_implementation("auto", _Torch()) == "sdpa"
-    assert resolve_attn_implementation("flash_attention_2", _Torch()) == "flash_attention_2"
-    assert resolve_attn_implementation("sdpa", _Torch()) == "sdpa"
-
-
-def test_resolve_attn_auto_turing_like() -> None:
-    class _Cuda:
-        @staticmethod
-        def is_available() -> bool:
-            return True
-
-        @staticmethod
-        def get_device_capability(_idx: int = 0) -> tuple[int, int]:
-            return (7, 5)  # T4
-
-    class _Torch:
-        cuda = _Cuda()
-
-    assert resolve_attn_implementation("auto", _Torch()) == "sdpa"
-
-
-def test_resolve_attn_auto_ada_without_flash_pkg() -> None:
-    class _Cuda:
-        @staticmethod
-        def is_available() -> bool:
-            return True
-
-        @staticmethod
-        def get_device_capability(_idx: int = 0) -> tuple[int, int]:
-            return (8, 9)  # L4
-
-    class _Torch:
-        cuda = _Cuda()
-
-    # Without flash_attn installed, should fall back to sdpa.
-    impl = resolve_attn_implementation("auto", _Torch())
-    assert impl in {"flash_attention_2", "sdpa"}
+    assert effective_max_concurrent(cfg, cfg.models[0]) == 16
+    assert effective_max_concurrent(
+        InferenceRunConfig(
+            run_id="t2",
+            output_dir=Path("runs"),
+            datasets=[],
+            models=[],
+            methods=[],
+            max_concurrent=0,
+        ),
+        cfg.models[0],
+    ) == 1
 
 
 def test_openai_compatible_retries_rate_limits() -> None:
@@ -232,17 +175,8 @@ def test_e1_vllm_config_has_concurrency_and_2048() -> None:
     _assert_experiment_scope(cfg)
 
 
-def test_e1_hf_config_has_auto_attn_and_2048() -> None:
-    cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language.json")
-    assert cfg.max_concurrent == 1
-    assert all(m.max_tokens == 2048 for m in cfg.methods)
-    for model in cfg.models:
-        assert model.backend_kwargs.get("attn_implementation") == "auto"
-    _assert_experiment_scope(cfg)
-
-
 def test_e2_configs_target_test_splits_only() -> None:
-    for name in ("e2_ttc_scaling.json", "e2_ttc_scaling_vllm.json"):
+    for name in ("e2_ttc_scaling_vllm.json", "e2_ttc_scaling_optional_vllm.json"):
         cfg = load_inference_run_config(ROOT / "configs" / name)
         _assert_experiment_scope(cfg)
 
@@ -251,7 +185,7 @@ def test_e1_openrouter_config_has_cost_and_retry_settings() -> None:
     cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language_openrouter.json")
     assert cfg.max_concurrent == 4
     assert all(m.max_tokens == 2048 for m in cfg.methods)
-    assert {m.name for m in cfg.models} == {"qwen3-4b", "qwen3-8b", "gemma3-4b", "llama3.2-3b", "deepseek-v4-flash"}
+    assert {m.name for m in cfg.models} == {"qwen3-4b", "qwen3.5-9b", "qwen3-8b", "gemma3-4b", "llama3.2-3b", "deepseek-v4-flash", "deepseek-v4.1-flash"}
     for model in cfg.models:
         assert model.backend == "openai_compatible"
         assert model.base_url == "https://openrouter.ai/api/v1"
@@ -271,7 +205,7 @@ def test_e1_ramp_router_config_uses_responses_backend() -> None:
     cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language_ramp_router.json")
     assert cfg.max_concurrent == 4
     assert all(m.max_tokens == 2048 for m in cfg.methods)
-    assert {m.name for m in cfg.models} == {"qwen3-4b", "gemma3-4b", "llama3.2-3b", "deepseek-v4-flash"}
+    assert {m.name for m in cfg.models} == {"qwen3-4b", "qwen3.5-4b", "qwen3.5-9b", "gemma3-4b", "llama3.2-3b", "deepseek-v4-flash", "deepseek-v4.1-flash"}
     for model in cfg.models:
         assert model.backend == "responses_api"
         assert model.base_url == "https://api.router.com/v1"
@@ -601,17 +535,13 @@ if __name__ == "__main__":
     test_run_concurrent_map_preserves_order()
     test_run_concurrent_map_serial_when_one_worker()
     test_run_concurrent_map_tolerant_keeps_successes_on_partial_failure()
-    test_effective_max_concurrent_clamps_transformers()
-    test_resolve_attn_auto_cpu_or_fallback()
-    test_resolve_attn_auto_turing_like()
-    test_resolve_attn_auto_ada_without_flash_pkg()
+    test_effective_max_concurrent_uses_configured_value()
     test_openai_compatible_retries_rate_limits()
     test_provider_cost_accepts_valid_usage_cost_only()
     test_process_wave_retries_transient_failures()
     test_process_wave_raises_non_transient_immediately()
     test_process_wave_exhausts_transient_retries()
     test_e1_vllm_config_has_concurrency_and_2048()
-    test_e1_hf_config_has_auto_attn_and_2048()
     test_e2_configs_target_test_splits_only()
     test_e1_openrouter_config_has_cost_and_retry_settings()
     test_e1_ramp_router_config_uses_responses_backend()

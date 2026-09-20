@@ -23,22 +23,18 @@ def _assert_e0_scope(cfg) -> None:
     assert method.n == 1 and method.temperature == 0.0 and method.selection == "first"
 
 
-def test_e0_hf_config() -> None:
-    cfg = load_inference_run_config(ROOT / "configs" / "e0_english_baseline.json")
+def test_e0_vllm_config() -> None:
+    cfg = load_inference_run_config(ROOT / "configs" / "e0_english_baseline_vllm.json")
     _assert_e0_scope(cfg)
-    assert cfg.run_id == "e0_english_baseline"
-    assert all(m.backend == "transformers" for m in cfg.models)
-
-
-def test_e0_vllm_config_mirrors_hf() -> None:
-    hf = load_inference_run_config(ROOT / "configs" / "e0_english_baseline.json")
-    vllm = load_inference_run_config(ROOT / "configs" / "e0_english_baseline_vllm.json")
-    assert vllm.run_id == "e0_english_baseline_vllm"
-    assert {m.name for m in vllm.models} == {m.name for m in hf.models}
-    assert all(m.backend == "openai_compatible" for m in vllm.models)
-    assert [(m.name, m.prompt_style, m.n, m.temperature) for m in vllm.methods] == [
-        (m.name, m.prompt_style, m.n, m.temperature) for m in hf.methods
-    ]
+    assert cfg.run_id == "e0_english_baseline_vllm"
+    assert {m.name for m in cfg.models} == {
+        "qwen3-4b",
+        "qwen3.5-4b",
+        "qwen3.5-9b",
+        "gemma3-4b",
+        "llama3.2-3b",
+    }
+    assert all(m.backend == "openai_compatible" for m in cfg.models)
 
 
 def test_e0_openrouter_config() -> None:
@@ -49,6 +45,7 @@ def test_e0_openrouter_config() -> None:
     assert cfg.transient_retry_rounds == 5
     assert {m.name for m in cfg.models} == {
         "qwen3-4b",
+        "qwen3.5-9b",
         "qwen3-8b",
         "gemma3-4b",
         "llama3.2-3b",
@@ -74,9 +71,12 @@ def test_e0_ramp_router_config() -> None:
     assert cfg.run_id == "e0_english_baseline_ramp_router"
     assert {m.name for m in cfg.models} == {
         "qwen3-4b",
+        "qwen3.5-4b",
+        "qwen3.5-9b",
         "gemma3-4b",
         "llama3.2-3b",
         "deepseek-v4-flash",
+        "deepseek-v4.1-flash",
     }
     for model in cfg.models:
         assert model.backend == "responses_api"
@@ -89,16 +89,15 @@ def test_e0_ramp_router_config() -> None:
 
 def test_e0_matches_e1_decode_settings() -> None:
     """E0 must share E1's max_tokens so gap estimates aren't confounded by truncation."""
-    e1 = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language.json")
-    e0 = load_inference_run_config(ROOT / "configs" / "e0_english_baseline.json")
+    e1 = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language_vllm.json")
+    e0 = load_inference_run_config(ROOT / "configs" / "e0_english_baseline_vllm.json")
     e1_tokens = {m.max_tokens for m in e1.methods}
     e0_tokens = {m.max_tokens for m in e0.methods}
     assert e1_tokens == e0_tokens
 
 
 if __name__ == "__main__":
-    test_e0_hf_config()
-    test_e0_vllm_config_mirrors_hf()
+    test_e0_vllm_config()
     test_e0_openrouter_config()
     test_e0_ramp_router_config()
     test_e0_matches_e1_decode_settings()

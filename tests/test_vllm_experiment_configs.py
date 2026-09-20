@@ -1,4 +1,4 @@
-"""vLLM experiment configs mirror HF experiment matrices with openai_compatible backends."""
+"""Experiment config integrity: every backend is an OpenAI-compatible REST API."""
 
 from __future__ import annotations
 
@@ -11,58 +11,58 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from ttcs_yoruba.config import load_inference_run_config
 
-
-def _assert_vllm_mirrors_hf(hf_name: str, vllm_name: str, *, expected_run_id: str) -> None:
-    hf = load_inference_run_config(ROOT / "configs" / hf_name)
-    vllm = load_inference_run_config(ROOT / "configs" / vllm_name)
-
-    assert vllm.run_id == expected_run_id
-    assert {m.name for m in vllm.models} == {m.name for m in hf.models}
-    assert {m.model for m in vllm.models} == {m.model for m in hf.models}
-    assert all(m.backend == "openai_compatible" for m in vllm.models)
-    assert all(m.base_url_env == "OPENAI_COMPATIBLE_BASE_URL" for m in vllm.models)
-    assert all(m.api_key_env == "OPENAI_COMPATIBLE_API_KEY" for m in vllm.models)
-    assert all(m.backend == "transformers" for m in hf.models)
-
-    # Method templates match (after expand, names/styles/n may differ in shape but
-    # source rows should share prompt_style / nested intent).
-    assert len(vllm.methods) == len(hf.methods)
-    for hm, vm in zip(hf.methods, vllm.methods, strict=True):
-        assert hm.name == vm.name
-        assert hm.prompt_style == vm.prompt_style
-        assert hm.selection == vm.selection
-        assert hm.n == vm.n
-        assert hm.reasoning_language == vm.reasoning_language
-        assert hm.nested_group_id == vm.nested_group_id
+QWEN35_MODELS = {"qwen3.5-4b", "qwen3.5-9b"}
 
 
-def test_e1_vllm_mirrors_hf() -> None:
-    _assert_vllm_mirrors_hf(
-        "e1_reasoning_language.json",
-        "e1_reasoning_language_vllm.json",
-        expected_run_id="e1_reasoning_language_vllm",
-    )
+def test_e1_vllm_config() -> None:
+    cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language_vllm.json")
+    assert cfg.run_id == "e1_reasoning_language_vllm"
+    assert all(m.backend == "openai_compatible" for m in cfg.models)
+    assert all(m.base_url_env == "OPENAI_COMPATIBLE_BASE_URL" for m in cfg.models)
+    assert all(m.api_key_env == "OPENAI_COMPATIBLE_API_KEY" for m in cfg.models)
+    assert QWEN35_MODELS <= {m.name for m in cfg.models}
 
 
-def test_e2_vllm_mirrors_hf() -> None:
-    _assert_vllm_mirrors_hf(
-        "e2_ttc_scaling.json",
-        "e2_ttc_scaling_vllm.json",
-        expected_run_id="e2_ttc_scaling_vllm",
-    )
-    vllm = load_inference_run_config(ROOT / "configs" / "e2_ttc_scaling_vllm.json")
+def test_e2_vllm_config() -> None:
+    cfg = load_inference_run_config(ROOT / "configs" / "e2_ttc_scaling_vllm.json")
+    assert cfg.run_id == "e2_ttc_scaling_vllm"
     # Nested expansion: n1 + n4..n64
-    assert any(m.n == 1 for m in vllm.methods)
-    assert max(m.n for m in vllm.methods) == 64
-    assert any(m.nested_group_id for m in vllm.methods)
+    assert any(m.n == 1 for m in cfg.methods)
+    assert max(m.n for m in cfg.methods) == 64
+    assert any(m.nested_group_id for m in cfg.methods)
+    assert QWEN35_MODELS <= {m.name for m in cfg.models}
 
 
-def test_e2_optional_vllm_mirrors_hf() -> None:
-    _assert_vllm_mirrors_hf(
-        "e2_ttc_scaling_optional.json",
-        "e2_ttc_scaling_optional_vllm.json",
-        expected_run_id="e2_ttc_scaling_optional_vllm",
-    )
+def test_e2_optional_vllm_config() -> None:
+    cfg = load_inference_run_config(ROOT / "configs" / "e2_ttc_scaling_optional_vllm.json")
+    assert cfg.run_id == "e2_ttc_scaling_optional_vllm"
+    assert all(m.backend == "openai_compatible" for m in cfg.models)
+
+
+def test_router_configs_use_openai_compatible_backends() -> None:
+    for name in (
+        "e0_english_baseline_openrouter.json",
+        "e1_reasoning_language_openrouter.json",
+        "e2_ttc_scaling_openrouter.json",
+    ):
+        cfg = load_inference_run_config(ROOT / "configs" / name)
+        assert all(m.backend == "openai_compatible" for m in cfg.models)
+        assert "qwen3.5-9b" in {m.name for m in cfg.models}
+    for name in (
+        "e0_english_baseline_ramp_router.json",
+        "e1_reasoning_language_ramp_router.json",
+    ):
+        cfg = load_inference_run_config(ROOT / "configs" / name)
+        assert all(m.backend == "responses_api" for m in cfg.models)
+        assert QWEN35_MODELS <= {m.name for m in cfg.models}
+
+
+def test_no_transformers_backend_in_any_config() -> None:
+    for path in sorted((ROOT / "configs").glob("*.json")):
+        if path.name.startswith("e4"):
+            continue
+        cfg = load_inference_run_config(path)
+        assert all(m.backend != "transformers" for m in cfg.models), path.name
 
 
 def test_e4_vllm_comparison_config() -> None:
@@ -81,8 +81,10 @@ def test_e4_vllm_comparison_config() -> None:
 
 
 if __name__ == "__main__":
-    test_e1_vllm_mirrors_hf()
-    test_e2_vllm_mirrors_hf()
-    test_e2_optional_vllm_mirrors_hf()
+    test_e1_vllm_config()
+    test_e2_vllm_config()
+    test_e2_optional_vllm_config()
+    test_router_configs_use_openai_compatible_backends()
+    test_no_transformers_backend_in_any_config()
     test_e4_vllm_comparison_config()
     print("ok")

@@ -21,8 +21,14 @@ def _write_jsonl(path: Path, rows: list[dict]) -> None:
 
 
 def test_e2_config_expands_n_sweep_with_greedy_n1(tmp_path: Path | None = None) -> None:
-    cfg = load_inference_run_config(ROOT / "configs" / "e2_ttc_scaling.json")
-    assert [m.name for m in cfg.models] == ["qwen3-4b", "qwen3-14b", "qwen3-32b"]
+    cfg = load_inference_run_config(ROOT / "configs" / "e2_ttc_scaling_vllm.json")
+    assert [m.name for m in cfg.models] == [
+        "qwen3-4b",
+        "qwen3.5-4b",
+        "qwen3.5-9b",
+        "qwen3-14b",
+        "qwen3-32b",
+    ]
     methods = {m.name: m for m in cfg.methods}
     assert set(methods) == {
         "english_cot_ttc_n1",

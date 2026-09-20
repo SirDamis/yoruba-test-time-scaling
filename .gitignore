@@ -28,6 +28,6 @@ Thumbs.db
 # Local notes / docs and scratch command file (not tracked)
 *.md
 !README.md
-!README_VLLM.md
 commands
 notes/
+thinkprm/

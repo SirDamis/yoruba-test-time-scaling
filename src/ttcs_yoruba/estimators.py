@@ -153,6 +153,13 @@ def _std(values: Sequence[float]) -> float:
     return math.sqrt(sum((v - mean) ** 2 for v in values) / len(values))
 
 
+def _as_int(value: Any) -> int:
+    try:
+        return int(value) if value is not None else 0
+    except (TypeError, ValueError):
+        return 0
+
+
 def default_ks(pool_n: int) -> list[int]:
     return [k for k in (1, 2, 4, 8, 16, 32, 64, 128) if k <= pool_n]
 
@@ -183,6 +190,16 @@ def nested_pool_estimates(
         pool_n = max(len(pool) for _, pool in items)
         ks_for_group = list(ks) if ks is not None else default_ks(pool_n)
         ks_for_group = sorted({int(k) for k in ks_for_group if 1 <= int(k) <= pool_n})
+
+        # Per-sample generation cost, averaged across examples (independent of k).
+        pooled = [(example_id, pool) for example_id, pool in items if pool]
+        mean_completion_per_sample = _mean(
+            [_mean([_as_int(r.get("token_count")) for r in pool]) for _, pool in pooled]
+        )
+        mean_prompt_per_sample = _mean(
+            [_mean([_as_int(r.get("prompt_token_count")) for r in pool]) for _, pool in pooled]
+        )
+
         for k in ks_for_group:
             pass_vals: list[float] = []
             maj_means: list[float] = []
@@ -205,6 +222,9 @@ def nested_pool_estimates(
                 degenerate.append(1.0 if diversity["degenerate"] else 0.0)
             if not pass_vals:
                 continue
+            maj_mean = _mean(maj_means)
+            completion_at_k = mean_completion_per_sample * k
+            prompt_at_k = mean_prompt_per_sample * k
             rows.append(
                 {
                     "dataset": dataset,
@@ -214,11 +234,19 @@ def nested_pool_estimates(
                     "k": k,
                     "num_examples": len(pass_vals),
                     "pass_at_k": _mean(pass_vals),
-                    "maj_at_k_mean": _mean(maj_means),
+                    "maj_at_k_mean": maj_mean,
                     "maj_at_k_between_example_std": _std(maj_means),
                     "maj_at_k_subset_std_mean": _mean(subset_stds),
                     "distinct_answers_mean": _mean(distinct_vals),
                     "degenerate_pool_rate": _mean(degenerate),
+                    "mean_completion_tokens_per_sample": mean_completion_per_sample,
+                    "mean_prompt_tokens_per_sample": mean_prompt_per_sample,
+                    "completion_tokens_per_example_at_k": completion_at_k,
+                    "prompt_tokens_per_example_at_k": prompt_at_k,
+                    "total_tokens_per_example_at_k": completion_at_k + prompt_at_k,
+                    "completion_tokens_per_correct": (
+                        completion_at_k / maj_mean if maj_mean > 0 else None
+                    ),
                 }
             )
     return rows

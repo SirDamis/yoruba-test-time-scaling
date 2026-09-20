@@ -15,6 +15,7 @@ SUPPORTED_PROMPT_STYLES = {
     "best_of_n_cot",
 }
 SUPPORTED_SELECTIONS = {"first", "majority_vote"}
+SUPPORTED_BACKENDS = {"openai_compatible", "responses", "responses_api", "openai_responses"}
 
 # Default reasoning-language tags for experiment logging / filtering.
 PROMPT_STYLE_REASONING_LANGUAGE = {
@@ -63,9 +64,15 @@ class InferenceModelConfig:
 
     @classmethod
     def from_dict(cls, row: dict[str, Any]) -> "InferenceModelConfig":
+        backend = str(row.get("backend", "openai_compatible"))
+        if backend not in SUPPORTED_BACKENDS:
+            raise ValueError(
+                f"Unsupported backend {backend!r} for model {row.get('name')!r}. "
+                f"Expected one of {sorted(SUPPORTED_BACKENDS)}"
+            )
         return cls(
             name=str(row["name"]),
-            backend=str(row.get("backend", "transformers")),
+            backend=backend,
             model=str(row.get("model", row["name"])),
             size_label=str(row.get("size_label", "unknown")),
             base_url_env=None if row.get("base_url_env") is None else str(row["base_url_env"]),
@@ -144,8 +151,8 @@ class InferenceRunConfig:
     seed: int | None = None
     default_request_timeout_s: float = 120.0
     continue_on_error: bool = False
-    # Concurrent in-flight generations (useful for local vLLM). HF Transformers
-    # is clamped to 1 in the pipeline (model generate is not thread-safe).
+    # Concurrent in-flight generations (useful for local vLLM and hosted
+    # OpenAI-compatible endpoints).
     max_concurrent: int = 1
     # Wave-level retry for transient backend failures (429/5xx/network) that
     # outlast the per-request retry loop. Completed units are checkpointed

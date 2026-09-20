@@ -39,8 +39,8 @@ def _translated_math_example() -> InferenceExample:
 
 
 def test_e1_config_has_expected_strategies() -> None:
-    cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language.json")
-    assert len(cfg.models) == 3
+    cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language_vllm.json")
+    assert len(cfg.models) == 5
     assert {m.prompt_style for m in cfg.methods} == {
         "yoruba_cot",
         "english_cot",
@@ -48,15 +48,19 @@ def test_e1_config_has_expected_strategies() -> None:
         "direct",
     }
     assert {m.reasoning_language for m in cfg.methods} == {"yo", "en", "en_pivot", "none"}
-    assert all(m.backend == "transformers" for m in cfg.models)
+    assert all(m.backend == "openai_compatible" for m in cfg.models)
 
 
 def test_e1_vllm_config_matches_experiment_with_openai_compatible() -> None:
-    """E1-vLLM is the same experiment matrix, served via local OpenAI-compatible API."""
-    hf = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language.json")
+    """E1-vLLM is the experiment matrix, served via a local OpenAI-compatible API."""
     vllm = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language_vllm.json")
-    assert {m.name for m in vllm.models} == {m.name for m in hf.models}
-    assert {m.model for m in vllm.models} == {m.model for m in hf.models}
+    assert {m.name for m in vllm.models} == {
+        "qwen3-4b",
+        "qwen3.5-4b",
+        "qwen3.5-9b",
+        "gemma3-4b",
+        "llama3.2-3b",
+    }
     assert all(m.backend == "openai_compatible" for m in vllm.models)
     assert all(m.base_url_env == "OPENAI_COMPATIBLE_BASE_URL" for m in vllm.models)
     assert all(m.api_key_env == "OPENAI_COMPATIBLE_API_KEY" for m in vllm.models)
@@ -81,14 +85,32 @@ def test_translate_pivot_instructs_translation() -> None:
 
 def test_yoruba_cot_uses_yoruba_exemplar_reasoning() -> None:
     prompt = render_prompt(_math_example(), "yoruba_cot")
+    assert "Pínpín dọ́gba" in prompt.user
     assert "First translate the quantities" not in prompt.user
-    assert "Kọ́kọ́ túmọ̀ iye" in prompt.user or "Àpapọ̀" in prompt.user
+    assert "Kọ́kọ́ túmọ̀ iye" not in prompt.user
+    assert "translate" not in prompt.user.lower()
 
 
 def test_english_cot_uses_english_exemplar_reasoning() -> None:
     prompt = render_prompt(_math_example(), "english_cot")
-    assert "First translate the quantities" in prompt.user
+    assert "Sharing equally means" in prompt.user
     assert "Kọ́kọ́ túmọ̀ iye" not in prompt.user
+    assert "translate" not in prompt.user.lower()
+
+
+def test_math_exemplar_reasoning_avoids_translation_and_varies() -> None:
+    """Exemplars must not prime a translate-first strategy (that is translate_pivot only)."""
+    from ttcs_yoruba.prompting import TASK_EXEMPLARS
+
+    en_reasonings = [ex.reasoning_en for ex in TASK_EXEMPLARS["math"]]
+    yo_reasonings = [ex.reasoning_yo for ex in TASK_EXEMPLARS["math"]]
+    for text in en_reasonings:
+        assert "translate" not in text.lower()
+    for text in yo_reasonings:
+        assert "túmọ̀" not in text
+    # No single boilerplate opener repeated across the demonstrations.
+    assert len({text.split()[0] for text in en_reasonings}) > 1
+    assert len({text.split()[0] for text in yo_reasonings}) > 1
 
 
 def test_english_cot_on_translated_dataset_does_not_call_question_yoruba() -> None:
@@ -134,6 +156,7 @@ if __name__ == "__main__":
     test_translate_pivot_instructs_translation()
     test_yoruba_cot_uses_yoruba_exemplar_reasoning()
     test_english_cot_uses_english_exemplar_reasoning()
+    test_math_exemplar_reasoning_avoids_translation_and_varies()
     test_english_cot_on_translated_dataset_does_not_call_question_yoruba()
     test_direct_prompt_omits_reasoning()
     test_direct_prompt_on_translated_dataset_uses_english_exemplars()
