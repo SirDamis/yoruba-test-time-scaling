@@ -5,10 +5,18 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
+import re
 from typing import Any, Iterable
 
 from .extraction import is_exact_match
 from .io_utils import read_json, read_jsonl
+
+_N_SUFFIX_RE = re.compile(r"_n\d+$")
+
+
+def method_family(method: str) -> str:
+    """Strip a trailing ``_n<k>`` so nested slices share one scaling series."""
+    return _N_SUFFIX_RE.sub("", method)
 
 
 @dataclass

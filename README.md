@@ -114,7 +114,7 @@ uv run python scripts/run_inference.py --config configs/e1_reasoning_language_ra
 
 ### E2 — TTC scaling
 
-The winning E1 strategy (currently `english_cot_ttc`) is expanded to `_n1..._n64`: N ∈ {1, 4, 8, 16, 32, 64} with `nested_n: true`. N=1 is a true greedy decode (temp 0, `selection=first`); N≥4 are nested prefixes of one stochastic pool sampled at max N (temp 0.7, top-p 0.95).
+The winning E1 strategy (currently `english_cot_ttc`) is expanded to `_n1..._n64`: N ∈ {1, 4, 8, 16, 32, 64} with `nested_n: true`. N=1 is a true greedy decode (temp 0, `selection=first`); N≥4 are nested prefixes of one stochastic pool sampled at max N (temp 0.7, top-p 0.95, `max_tokens=4096`).
 
 ```bash
 uv run python scripts/run_inference.py --config configs/e2_ttc_scaling_vllm.json
@@ -123,7 +123,9 @@ uv run python scripts/run_inference.py --config configs/e2_ttc_scaling_openroute
 uv run python scripts/aggregate_ttc_metrics.py --runs-dir runs --run-id e2_ttc_scaling_vllm
 ```
 
-Outputs land in `results/ttc_scaling/`: metrics JSON/CSV, `accuracy_vs_n.png`, `accuracy_vs_tokens.png`.
+Outputs land in `results/ttc_scaling/`: metrics JSON/CSV, `pool_estimates.{json,csv}` (unbiased `pass@k` + random-subset `maj@k` + diversity), `accuracy_vs_n.png`, `accuracy_vs_tokens.png`. The aggregate warns when any condition exceeds 2% truncation.
+
+Report the pool `maj@k` (random k-subsets) as the self-consistency metric — the prefix-based `select@N` in the main table is order-sensitive for majority vote.
 
 ### E3 — Generation vs selection
 

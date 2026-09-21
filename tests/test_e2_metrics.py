@@ -20,7 +20,7 @@ def _write_jsonl(path: Path, rows: list[dict]) -> None:
     )
 
 
-def test_e2_config_expands_n_sweep_with_greedy_n1(tmp_path: Path | None = None) -> None:
+def test_e2_config_expands_pool_n1_plus_greedy_reference() -> None:
     cfg = load_inference_run_config(ROOT / "configs" / "e2_ttc_scaling_vllm.json")
     assert [m.name for m in cfg.models] == [
         "qwen3.5-4b",
@@ -31,18 +31,30 @@ def test_e2_config_expands_n_sweep_with_greedy_n1(tmp_path: Path | None = None) 
     methods = {m.name: m for m in cfg.methods}
     assert set(methods) == {
         "english_cot_ttc_n1",
+        "english_cot_ttc_n2",
+        "english_cot_ttc_n3",
         "english_cot_ttc_n4",
         "english_cot_ttc_n8",
         "english_cot_ttc_n16",
         "english_cot_ttc_n32",
         "english_cot_ttc_n64",
+        "english_cot_greedy",
     }
+    # N=1 is the first draw of the same stochastic pool (not a separate greedy decode).
     n1 = methods["english_cot_ttc_n1"]
     assert n1.n == 1
-    assert n1.temperature == 0.0
-    assert n1.top_p is None
-    assert n1.selection == "first"
+    assert n1.temperature == 0.7
+    assert n1.top_p == 0.95
+    assert n1.selection == "majority_vote"
     assert n1.prompt_style == "english_cot"
+    assert n1.nested_group_id == "english_cot_ttc"
+    # Greedy N=1 is kept as a separate, labelled no-TTC reference outside the group.
+    greedy = methods["english_cot_greedy"]
+    assert greedy.n == 1
+    assert greedy.temperature == 0.0
+    assert greedy.top_p is None
+    assert greedy.selection == "first"
+    assert greedy.nested_group_id is None
     n4 = methods["english_cot_ttc_n4"]
     assert n4.n == 4
     assert n4.temperature == 0.7
@@ -215,7 +227,7 @@ if __name__ == "__main__":
     from pathlib import Path as P
     import tempfile
 
-    test_e2_config_expands_n_sweep_with_greedy_n1()
+    test_e2_config_expands_pool_n1_plus_greedy_reference()
     with tempfile.TemporaryDirectory() as td:
         test_aggregate_run_dir_pass_select_and_tokens(P(td))
     with tempfile.TemporaryDirectory() as td:

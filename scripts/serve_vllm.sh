@@ -14,7 +14,7 @@ set -euo pipefail
 
 MODEL="${1:-Qwen/Qwen3-4B}"
 PORT="${2:-8000}"
-MAX_MODEL_LEN="${3:-4096}"
+MAX_MODEL_LEN="${3:-8192}"
 HOST="${HOST:-0.0.0.0}"
 GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.90}"
 
