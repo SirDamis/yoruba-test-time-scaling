@@ -1,8 +1,8 @@
 {
-  "small_model": "qwen3-4b",
+  "small_model": "qwen3.5-4b",
   "large_model": "qwen3-32b",
   "large_n": 1,
-  "include_models": ["qwen3-14b"],
+  "include_models": ["qwen3.5-9b", "qwen3-14b"],
   "small_method": "english_cot_ttc",
   "large_method": "english_cot_ttc",
   "ladder_method": null,

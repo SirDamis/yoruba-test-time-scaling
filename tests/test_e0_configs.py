@@ -28,7 +28,6 @@ def test_e0_vllm_config() -> None:
     _assert_e0_scope(cfg)
     assert cfg.run_id == "e0_english_baseline_vllm"
     assert {m.name for m in cfg.models} == {
-        "qwen3-4b",
         "qwen3.5-4b",
         "qwen3.5-9b",
         "gemma3-4b",
@@ -44,9 +43,7 @@ def test_e0_openrouter_config() -> None:
     assert cfg.max_concurrent == 4
     assert cfg.transient_retry_rounds == 5
     assert {m.name for m in cfg.models} == {
-        "qwen3-4b",
         "qwen3.5-9b",
-        "qwen3-8b",
         "gemma3-4b",
         "llama3.2-3b",
     }
@@ -70,7 +67,6 @@ def test_e0_ramp_router_config() -> None:
     _assert_e0_scope(cfg)
     assert cfg.run_id == "e0_english_baseline_ramp_router"
     assert {m.name for m in cfg.models} == {
-        "qwen3-4b",
         "qwen3.5-4b",
         "qwen3.5-9b",
         "gemma3-4b",

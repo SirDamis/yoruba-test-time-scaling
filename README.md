@@ -73,10 +73,8 @@ Model `name` is what you pass to `--models` and must match the config, the vLLM 
 
 | Config `name` | vLLM | OpenRouter | Ramp Router |
 |---------------|------|------------|-------------|
-| `qwen3-4b` | `Qwen/Qwen3-4B` | `qwen/qwen3-4b` | `qwen/qwen3-4b` |
 | `qwen3.5-4b` | `Qwen/Qwen3.5-4B` | — | `qwen/qwen3.5-4b` |
 | `qwen3.5-9b` | `Qwen/Qwen3.5-9B` | `qwen/qwen3.5-9b` | `qwen/qwen3.5-9b` |
-| `qwen3-8b` | — | `qwen/qwen3-8b` | — |
 | `qwen3-14b` | `Qwen/Qwen3-14B` | — | — |
 | `qwen3-32b` | `Qwen/Qwen3-32B` | — | — |
 | `gemma3-4b` | `google/gemma-3-4b-it` | `google/gemma-3-4b-it` | `google/gemma-3-4b-it` |

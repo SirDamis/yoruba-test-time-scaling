@@ -185,7 +185,7 @@ def test_e1_openrouter_config_has_cost_and_retry_settings() -> None:
     cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language_openrouter.json")
     assert cfg.max_concurrent == 4
     assert all(m.max_tokens == 2048 for m in cfg.methods)
-    assert {m.name for m in cfg.models} == {"qwen3-4b", "qwen3.5-9b", "qwen3-8b", "gemma3-4b", "llama3.2-3b", "deepseek-v4-flash", "deepseek-v4.1-flash"}
+    assert {m.name for m in cfg.models} == {"qwen3.5-9b", "gemma3-4b", "llama3.2-3b", "deepseek-v4-flash", "deepseek-v4.1-flash"}
     for model in cfg.models:
         assert model.backend == "openai_compatible"
         assert model.base_url == "https://openrouter.ai/api/v1"
@@ -205,7 +205,7 @@ def test_e1_ramp_router_config_uses_responses_backend() -> None:
     cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language_ramp_router.json")
     assert cfg.max_concurrent == 4
     assert all(m.max_tokens == 2048 for m in cfg.methods)
-    assert {m.name for m in cfg.models} == {"qwen3-4b", "qwen3.5-4b", "qwen3.5-9b", "gemma3-4b", "llama3.2-3b", "deepseek-v4-flash", "deepseek-v4.1-flash"}
+    assert {m.name for m in cfg.models} == {"qwen3.5-4b", "qwen3.5-9b", "gemma3-4b", "llama3.2-3b", "deepseek-v4-flash", "deepseek-v4.1-flash"}
     for model in cfg.models:
         assert model.backend == "responses_api"
         assert model.base_url == "https://api.router.com/v1"
