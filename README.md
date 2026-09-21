@@ -241,6 +241,7 @@ results/           Evaluation outputs (gitignored)
 | `scripts/e1_accuracy.py` | Per-condition accuracy table for one run |
 | `scripts/aggregate_ttc_metrics.py` | E2 metrics + plots |
 | `scripts/estimate_pool_ttc.py` | Pool-based pass@k / maj@k / diversity |
+| `scripts/plot_pool_gap.py` | Plot the pass@k − maj@k generation-vs-selection gap |
 | `scripts/reselect_candidates.py` | E3 offline re-selection |
 | `scripts/compare_e4.py` | E4 small+TTC vs large greedy |
 | `scripts/extract_truncated.py` | Pull truncated generations for inspection |

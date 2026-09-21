@@ -184,46 +184,46 @@ def write_pool_estimates(
     return rows
 
 
-def print_table(metrics) -> None:
-    headers = [
-        "Dataset",
-        "Model",
-        "Method",
-        "N",
-        "Acc",
-        "pass@N",
-        "Trunc%",
-        "Empty%",
-        "Tokens",
-        "Tok/ex",
-        "PTok/ex",
-        "Lat/ex(s)",
-    ]
-    widths = [12, 16, 22, 4, 7, 7, 7, 7, 8, 8, 8, 9]
-    sep = "  "
-    header_line = sep.join(h.ljust(w) for h, w in zip(headers, widths))
-    print("\n" + header_line)
-    print("-" * len(header_line))
-    for m in metrics:
-        trunc = m.truncation_rate
-        trunc_s = "—" if trunc is None else f"{trunc:.1%}"
-        empty = m.empty_extraction_rate
-        empty_s = "—" if empty is None else f"{empty:.1%}"
-        row = [
-            m.dataset[: widths[0]].ljust(widths[0]),
-            m.model[: widths[1]].ljust(widths[1]),
-            m.method[: widths[2]].ljust(widths[2]),
-            str(m.n).rjust(widths[3]),
-            f"{m.accuracy:.1%}".rjust(widths[4]),
-            f"{m.pass_at_n_rate:.1%}".rjust(widths[5]),
-            trunc_s.rjust(widths[6]),
-            empty_s.rjust(widths[7]),
-            str(m.total_tokens).rjust(widths[8]),
-            f"{m.mean_tokens_per_example:.1f}".rjust(widths[9]),
-            f"{m.mean_prompt_tokens_per_example:.1f}".rjust(widths[10]),
-            f"{m.mean_latency_s_per_example:.2f}".rjust(widths[11]),
-        ]
-        print(sep.join(row))
+# def print_table(metrics) -> None:
+#     headers = [
+#         "Dataset",
+#         "Model",
+#         "Method",
+#         "N",
+#         "Acc",
+#         "pass@N",
+#         "Trunc%",
+#         "Empty%",
+#         "Tokens",
+#         "Tok/ex",
+#         "PTok/ex",
+#         "Lat/ex(s)",
+#     ]
+#     widths = [12, 16, 22, 4, 7, 7, 7, 7, 8, 8, 8, 9]
+#     sep = "  "
+#     header_line = sep.join(h.ljust(w) for h, w in zip(headers, widths))
+#     print("\n" + header_line)
+#     print("-" * len(header_line))
+#     for m in metrics:
+#         trunc = m.truncation_rate
+#         trunc_s = "—" if trunc is None else f"{trunc:.1%}"
+#         empty = m.empty_extraction_rate
+#         empty_s = "—" if empty is None else f"{empty:.1%}"
+#         row = [
+#             m.dataset[: widths[0]].ljust(widths[0]),
+#             m.model[: widths[1]].ljust(widths[1]),
+#             m.method[: widths[2]].ljust(widths[2]),
+#             str(m.n).rjust(widths[3]),
+#             f"{m.accuracy:.1%}".rjust(widths[4]),
+#             f"{m.pass_at_n_rate:.1%}".rjust(widths[5]),
+#             trunc_s.rjust(widths[6]),
+#             empty_s.rjust(widths[7]),
+#             str(m.total_tokens).rjust(widths[8]),
+#             f"{m.mean_tokens_per_example:.1f}".rjust(widths[9]),
+#             f"{m.mean_prompt_tokens_per_example:.1f}".rjust(widths[10]),
+#             f"{m.mean_latency_s_per_example:.2f}".rjust(widths[11]),
+#         ]
+#         print(sep.join(row))
 
 
 def main() -> None:
@@ -261,7 +261,7 @@ def main() -> None:
     print(f"Aggregated {len(metrics)} conditions from {len(run_dirs)} run(s).")
     print(f"  JSON: {json_path}")
     print(f"  CSV:  {csv_path}")
-    print_table(metrics)
+    # print_table(metrics)
 
     truncated = [
         m for m in metrics if (m.truncation_rate or 0.0) > TRUNCATION_WARN_THRESHOLD
