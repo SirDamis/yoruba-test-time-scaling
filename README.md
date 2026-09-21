@@ -114,7 +114,7 @@ uv run python scripts/run_inference.py --config configs/e1_reasoning_language_ra
 
 ### E2 — TTC scaling
 
-The winning E1 strategy (currently `english_cot_ttc`) is expanded to `_n1..._n64`: N ∈ {1, 4, 8, 16, 32, 64} with `nested_n: true`. N=1 is a true greedy decode (temp 0, `selection=first`); N≥4 are nested prefixes of one stochastic pool sampled at max N (temp 0.7, top-p 0.7).
+The winning E1 strategy (currently `english_cot_ttc`) is expanded to `_n1..._n64`: N ∈ {1, 4, 8, 16, 32, 64} with `nested_n: true`. N=1 is a true greedy decode (temp 0, `selection=first`); N≥4 are nested prefixes of one stochastic pool sampled at max N (temp 0.7, top-p 0.95).
 
 ```bash
 uv run python scripts/run_inference.py --config configs/e2_ttc_scaling_vllm.json
