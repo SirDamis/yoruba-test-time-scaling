@@ -615,19 +615,26 @@ def _plot_scaling(
     if not filtered:
         return None
 
-    # Group by (dataset, model) series, sorted by x.
-    series: dict[tuple[str, str], list[ConditionMetrics]] = defaultdict(list)
+    # Group by (dataset, model, method family) so nested N-slices form one curve
+    # and a standalone reference (e.g. greedy N=1) is its own labelled line.
+    series: dict[tuple[str, str, str], list[ConditionMetrics]] = defaultdict(list)
     for item in filtered:
-        series[(item.dataset, item.model)].append(item)
+        series[(item.dataset, item.model, method_family(item.method))].append(item)
+    multi_family = len({key[2] for key in series}) > 1
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig, ax = plt.subplots(figsize=(8, 5))
 
-    for (ds, model), points in sorted(series.items()):
+    for (ds, model, family), points in sorted(series.items()):
         points = sorted(points, key=lambda p: (p.n, getattr(p, x_attr)))
         xs = [getattr(p, x_attr) for p in points]
         ys = [p.accuracy for p in points]
-        label = f"{model}" if dataset or len({m.dataset for m in filtered}) == 1 else f"{model} | {ds}"
+        parts = [model]
+        if multi_family:
+            parts.append(family)
+        if not dataset and len({m.dataset for m in filtered}) > 1:
+            parts.append(ds)
+        label = " | ".join(parts)
         ax.plot(xs, ys, marker="o", label=label)
         # Annotate N on token plots for readability.
         if use_tokens_x:
