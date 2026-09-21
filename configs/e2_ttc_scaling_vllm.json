@@ -158,8 +158,8 @@
   ],
   "methods": [
     {
-      "name": "english_cot_ttc",
-      "prompt_style": "english_cot",
+      "name": "translate_pivot_ttc",
+      "prompt_style": "translate_pivot",
       "selection": "majority_vote",
       "n_values": [
         1,
@@ -176,16 +176,16 @@
       "top_p": 0.95,
       "greedy_n1": false,
       "max_tokens": 4096,
-      "reasoning_language": "en"
+      "reasoning_language": "en_pivot"
     },
     {
-      "name": "english_cot_greedy",
-      "prompt_style": "english_cot",
+      "name": "translate_pivot_greedy",
+      "prompt_style": "translate_pivot",
       "selection": "first",
       "n": 1,
       "temperature": 0.0,
       "max_tokens": 4096,
-      "reasoning_language": "en"
+      "reasoning_language": "en_pivot"
     }
   ],
   "max_concurrent": 8

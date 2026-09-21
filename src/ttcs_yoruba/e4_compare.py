@@ -14,16 +14,16 @@ from .metrics import ConditionMetrics, aggregate_runs, find_run_dirs
 class E4ComparisonConfig:
     """Which models/Ns define the E4 paper comparison."""
 
-    small_model: str = "qwen3-4b"
+    small_model: str = "qwen3.5-4b"
     large_model: str = "qwen3-32b"
     large_n: int = 1
     # Optional intermediate ladder models to include in full tables (not required for match).
     include_models: tuple[str, ...] = ()
     datasets: tuple[str, ...] | None = None
-    # Method filters: exact name, prefix (``english_cot_ttc``), or glob (``english_cot_ttc*``).
+    # Method filters: exact name, prefix (``translate_pivot_ttc``), or glob (``translate_pivot_ttc*``).
     # Prevents collisions when multiple methods share the same model and N.
-    small_method: str | None = "english_cot_ttc"
-    large_method: str | None = "english_cot_ttc"
+    small_method: str | None = "translate_pivot_ttc"
+    large_method: str | None = "translate_pivot_ttc"
     # Method filter for include_models ladder rows (defaults to large_method).
     ladder_method: str | None = None
 
@@ -103,9 +103,9 @@ def method_matches(method_name: str, filter_spec: str | None) -> bool:
 
     Filter forms:
     - ``None``: match any method
-    - exact: ``english_cot_ttc_n4``
-    - prefix: ``english_cot_ttc`` matches ``english_cot_ttc`` and ``english_cot_ttc_n4``
-    - glob suffix ``*``: ``english_cot_ttc*`` same as prefix
+    - exact: ``translate_pivot_ttc_n4``
+    - prefix: ``translate_pivot_ttc`` matches ``translate_pivot_ttc`` and ``translate_pivot_ttc_n4``
+    - glob suffix ``*``: ``translate_pivot_ttc*`` same as prefix
     """
     if filter_spec is None or filter_spec == "" or filter_spec == "*":
         return True
@@ -114,7 +114,7 @@ def method_matches(method_name: str, filter_spec: str | None) -> bool:
         return method_name.startswith(spec[:-1])
     if method_name == spec:
         return True
-    # Prefix so ``english_cot_ttc`` matches expanded ``english_cot_ttc_n8``.
+    # Prefix so ``translate_pivot_ttc`` matches expanded ``translate_pivot_ttc_n8``.
     return method_name.startswith(spec + "_") or method_name.startswith(spec + "-")
 
 

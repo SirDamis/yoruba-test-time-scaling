@@ -75,7 +75,7 @@ def test_expand_without_nested_has_no_group() -> None:
 def test_e2_config_is_nested() -> None:
     cfg = load_inference_run_config(ROOT / "configs" / "e2_ttc_scaling_vllm.json")
     nested = [m for m in cfg.methods if m.nested_group_id is not None]
-    assert nested and all(m.nested_group_id == "english_cot_ttc" for m in nested)
+    assert nested and all(m.nested_group_id == "translate_pivot_ttc" for m in nested)
     assert max(m.n for m in nested) == 64
     # The greedy N=1 reference is a standalone method, outside the nested group.
     assert any(m.nested_group_id is None and m.selection == "first" for m in cfg.methods)

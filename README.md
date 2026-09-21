@@ -114,7 +114,7 @@ uv run python scripts/run_inference.py --config configs/e1_reasoning_language_ra
 
 ### E2 — TTC scaling
 
-The winning E1 strategy (currently `english_cot`) is expanded to `_n1..._n64`: N ∈ {1, 2, 3, 4, 8, 16, 32, 64} with `nested_n: true`. Every N — including N=1 — is a prefix of one stochastic pool sampled at max N (temp 0.7, top-p 0.95, `max_tokens=4096`), so the scaling curve is a single consistent process. A separate `english_cot_greedy` method (temp 0, `selection=first`) is generated as a labelled no-TTC reference rather than being folded into the curve.
+The winning E1 strategy (currently `translate_pivot`) is expanded to `_n1..._n64`: N ∈ {1, 2, 3, 4, 8, 16, 32, 64} with `nested_n: true`. Every N — including N=1 — is a prefix of one stochastic pool sampled at max N (temp 0.7, top-p 0.95, `max_tokens=4096`), so the scaling curve is a single consistent process. A separate `translate_pivot_greedy` method (temp 0, `selection=first`) is generated as a labelled no-TTC reference rather than being folded into the curve.
 
 ```bash
 uv run python scripts/run_inference.py --config configs/e2_ttc_scaling_vllm.json
@@ -177,7 +177,8 @@ Entrypoint: `scripts/run_inference.py`.
 | `--datasets NAMES` | Comma-separated **exact** dataset names (e.g. `afrimgsm_yor`) |
 | `--language CODES` | Keep datasets whose name ends in `_<code>` (e.g. `yor`, `yor,hau`; `all` disables) |
 | `--models NAMES` | Comma-separated **exact** model names (e.g. `qwen3.5-9b`) |
-| `--methods NAMES` | Comma-separated **exact** method names (E2: `english_cot_ttc_n4`, ...) |
+| `--methods NAMES` | Comma-separated method filters: exact (`translate_pivot_ttc_n4`), name prefix (`translate_pivot_ttc`), `*` glob, or prompt style (`translate_pivot`) |
+| `--skip-greedy` | Drop standalone greedy N=1 reference methods (`translate_pivot_greedy`) |
 | `--limit N` | Per-dataset example cap (smoke runs) |
 | `--resume` / `--no-resume` | Resume from checkpoint (default `--resume`) |
 | `--overwrite` | Delete prior artifacts for this `run_id` and start clean |

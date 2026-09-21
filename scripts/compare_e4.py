@@ -59,7 +59,7 @@ def parse_args() -> argparse.Namespace:
         "--small-model",
         type=str,
         default=None,
-        help="Override small model name (default from config: qwen3-4b).",
+        help="Override small model name (default from config: qwen3.5-4b).",
     )
     parser.add_argument(
         "--large-model",
@@ -112,13 +112,13 @@ def load_e4_config(path: Path | None) -> E4ComparisonConfig:
     include = payload.get("include_models") or []
     datasets = payload.get("datasets")
     return E4ComparisonConfig(
-        small_model=str(payload.get("small_model", "qwen3-4b")),
+        small_model=str(payload.get("small_model", "qwen3.5-4b")),
         large_model=str(payload.get("large_model", "qwen3-32b")),
         large_n=int(payload.get("large_n", 1)),
         include_models=tuple(str(x) for x in include),
         datasets=None if datasets is None else tuple(str(x) for x in datasets),
-        small_method=payload.get("small_method", "english_cot_ttc"),
-        large_method=payload.get("large_method", "english_cot_ttc"),
+        small_method=payload.get("small_method", "translate_pivot_ttc"),
+        large_method=payload.get("large_method", "translate_pivot_ttc"),
         ladder_method=payload.get("ladder_method"),
     )
 

@@ -35,7 +35,7 @@ def _m(
         dataset=dataset,
         model=model,
         model_size_label=model.split("-")[-1].upper(),
-        method=method or f"english_cot_ttc_n{n}",
+        method=method or f"translate_pivot_ttc_n{n}",
         prompt_style="english_cot",
         reasoning_language="en",
         selection="first" if n == 1 else "majority_vote",
@@ -53,14 +53,14 @@ def _m(
 
 def test_small_matches_large_at_sufficient_n() -> None:
     metrics = [
-        _m(dataset="afrimgsm", model="qwen3-4b", n=1, accuracy_correct=3, tokens=20),
-        _m(dataset="afrimgsm", model="qwen3-4b", n=4, accuracy_correct=6, tokens=80),
-        _m(dataset="afrimgsm", model="qwen3-4b", n=16, accuracy_correct=8, tokens=300),
+        _m(dataset="afrimgsm", model="qwen3.5-4b", n=1, accuracy_correct=3, tokens=20),
+        _m(dataset="afrimgsm", model="qwen3.5-4b", n=4, accuracy_correct=6, tokens=80),
+        _m(dataset="afrimgsm", model="qwen3.5-4b", n=16, accuracy_correct=8, tokens=300),
         _m(dataset="afrimgsm", model="qwen3-32b", n=1, accuracy_correct=7, tokens=40),
     ]
     report = build_e4_comparison(
         metrics,
-        config=E4ComparisonConfig(small_model="qwen3-4b", large_model="qwen3-32b", large_n=1),
+        config=E4ComparisonConfig(small_model="qwen3.5-4b", large_model="qwen3-32b", large_n=1),
     )
     block = report["datasets"][0]
     assert block["large_baseline"]["accuracy"] == 0.7
@@ -75,11 +75,11 @@ def test_small_matches_large_at_sufficient_n() -> None:
 
 def test_missing_large_baseline() -> None:
     metrics = [
-        _m(dataset="afrimgsm", model="qwen3-4b", n=4, accuracy_correct=5),
+        _m(dataset="afrimgsm", model="qwen3.5-4b", n=4, accuracy_correct=5),
     ]
     report = build_e4_comparison(
         metrics,
-        config=E4ComparisonConfig(small_model="qwen3-4b", large_model="qwen3-32b"),
+        config=E4ComparisonConfig(small_model="qwen3.5-4b", large_model="qwen3-32b"),
     )
     assert report["datasets"][0]["large_baseline"] is None
     assert report["headline"]["datasets_missing_large_baseline"] == ["afrimgsm"]
@@ -87,7 +87,7 @@ def test_missing_large_baseline() -> None:
 
 def test_efficiency_fields_present() -> None:
     metrics = [
-        _m(dataset="afrimgsm", model="qwen3-4b", n=4, accuracy_correct=5, tokens=100),
+        _m(dataset="afrimgsm", model="qwen3.5-4b", n=4, accuracy_correct=5, tokens=100),
         _m(dataset="afrimgsm", model="qwen3-32b", n=1, accuracy_correct=6, tokens=50),
     ]
     report = build_e4_comparison(metrics)
@@ -99,8 +99,8 @@ def test_efficiency_fields_present() -> None:
 
 def test_save_e4_report_writes_files() -> None:
     metrics = [
-        _m(dataset="afrimgsm", model="qwen3-4b", n=1, accuracy_correct=4),
-        _m(dataset="afrimgsm", model="qwen3-4b", n=8, accuracy_correct=7),
+        _m(dataset="afrimgsm", model="qwen3.5-4b", n=1, accuracy_correct=4),
+        _m(dataset="afrimgsm", model="qwen3.5-4b", n=8, accuracy_correct=7),
         _m(dataset="afrimgsm", model="qwen3-32b", n=1, accuracy_correct=6),
     ]
     report = build_e4_comparison(metrics)
@@ -115,18 +115,18 @@ def test_save_e4_report_writes_files() -> None:
 
 
 def test_condition_metrics_from_dict_roundtrip() -> None:
-    original = _m(dataset="x", model="qwen3-4b", n=4, accuracy_correct=3)
+    original = _m(dataset="x", model="qwen3.5-4b", n=4, accuracy_correct=3)
     restored = condition_metrics_from_dict(original.to_dict())
     assert restored.accuracy == original.accuracy
     assert restored.n == 4
-    assert restored.model == "qwen3-4b"
+    assert restored.model == "qwen3.5-4b"
 
 
 def test_method_matches_prefix_and_exact() -> None:
-    assert method_matches("english_cot_ttc_n4", "english_cot_ttc")
-    assert method_matches("english_cot_ttc_n4", "english_cot_ttc*")
-    assert method_matches("english_cot_ttc_n4", "english_cot_ttc_n4")
-    assert not method_matches("yoruba_cot_n4", "english_cot_ttc")
+    assert method_matches("translate_pivot_ttc_n4", "translate_pivot_ttc")
+    assert method_matches("translate_pivot_ttc_n4", "translate_pivot_ttc*")
+    assert method_matches("translate_pivot_ttc_n4", "translate_pivot_ttc_n4")
+    assert not method_matches("yoruba_cot_n4", "translate_pivot_ttc")
     assert method_matches("anything", None)
 
 
@@ -135,47 +135,47 @@ def test_method_filter_disambiguates_same_model_n() -> None:
     metrics = [
         _m(
             dataset="afrimgsm",
-            model="qwen3-4b",
+            model="qwen3.5-4b",
             n=4,
             accuracy_correct=2,
             method="yoruba_cot_ttc_n4",
         ),
         _m(
             dataset="afrimgsm",
-            model="qwen3-4b",
+            model="qwen3.5-4b",
             n=4,
             accuracy_correct=8,
-            method="english_cot_ttc_n4",
+            method="translate_pivot_ttc_n4",
         ),
         _m(
             dataset="afrimgsm",
             model="qwen3-32b",
             n=1,
             accuracy_correct=5,
-            method="english_cot_ttc_n1",
+            method="translate_pivot_ttc_n1",
         ),
     ]
     report = build_e4_comparison(
         metrics,
         config=E4ComparisonConfig(
-            small_model="qwen3-4b",
+            small_model="qwen3.5-4b",
             large_model="qwen3-32b",
-            small_method="english_cot_ttc",
-            large_method="english_cot_ttc",
+            small_method="translate_pivot_ttc",
+            large_method="translate_pivot_ttc",
         ),
     )
     small = report["paper_table"][0]["small"]
-    assert small["method"] == "english_cot_ttc_n4"
+    assert small["method"] == "translate_pivot_ttc_n4"
     assert small["accuracy"] == 0.8
 
     # Wrong filter should find nothing for small curve.
     empty = build_e4_comparison(
         metrics,
         config=E4ComparisonConfig(
-            small_model="qwen3-4b",
+            small_model="qwen3.5-4b",
             large_model="qwen3-32b",
-            small_method="translate_pivot",
-            large_method="english_cot_ttc",
+            small_method="english_cot_ttc",
+            large_method="translate_pivot_ttc",
         ),
     )
     assert empty["paper_table"] == []

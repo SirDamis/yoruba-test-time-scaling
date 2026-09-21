@@ -30,36 +30,72 @@ def test_e2_config_expands_pool_n1_plus_greedy_reference() -> None:
     ]
     methods = {m.name: m for m in cfg.methods}
     assert set(methods) == {
-        "english_cot_ttc_n1",
-        "english_cot_ttc_n2",
-        "english_cot_ttc_n3",
-        "english_cot_ttc_n4",
-        "english_cot_ttc_n8",
-        "english_cot_ttc_n16",
-        "english_cot_ttc_n32",
-        "english_cot_ttc_n64",
-        "english_cot_greedy",
+        "translate_pivot_ttc_n1",
+        "translate_pivot_ttc_n2",
+        "translate_pivot_ttc_n3",
+        "translate_pivot_ttc_n4",
+        "translate_pivot_ttc_n8",
+        "translate_pivot_ttc_n16",
+        "translate_pivot_ttc_n32",
+        "translate_pivot_ttc_n64",
+        "translate_pivot_greedy",
     }
     # N=1 is the first draw of the same stochastic pool (not a separate greedy decode).
-    n1 = methods["english_cot_ttc_n1"]
+    n1 = methods["translate_pivot_ttc_n1"]
     assert n1.n == 1
     assert n1.temperature == 0.7
     assert n1.top_p == 0.95
     assert n1.selection == "majority_vote"
-    assert n1.prompt_style == "english_cot"
-    assert n1.nested_group_id == "english_cot_ttc"
+    assert n1.prompt_style == "translate_pivot"
+    assert n1.reasoning_language == "en_pivot"
+    assert n1.nested_group_id == "translate_pivot_ttc"
     # Greedy N=1 is kept as a separate, labelled no-TTC reference outside the group.
-    greedy = methods["english_cot_greedy"]
+    greedy = methods["translate_pivot_greedy"]
     assert greedy.n == 1
     assert greedy.temperature == 0.0
     assert greedy.top_p is None
     assert greedy.selection == "first"
+    assert greedy.prompt_style == "translate_pivot"
     assert greedy.nested_group_id is None
-    n4 = methods["english_cot_ttc_n4"]
+    n4 = methods["translate_pivot_ttc_n4"]
     assert n4.n == 4
     assert n4.temperature == 0.7
     assert n4.top_p == 0.95
     assert n4.selection == "majority_vote"
+
+
+def test_resolve_method_selection_specs_and_skip_greedy() -> None:
+    from ttcs_yoruba.inference import is_greedy_reference, resolve_method_selection
+
+    cfg = load_inference_run_config(ROOT / "configs" / "e2_ttc_scaling_vllm.json")
+    methods = list(cfg.methods)
+
+    # No filter -> None (all methods).
+    assert resolve_method_selection(methods, None) is None
+
+    # Prompt-style spec selects the nested slices and the greedy reference.
+    by_style = resolve_method_selection(methods, {"translate_pivot"})
+    assert "translate_pivot_ttc_n64" in by_style
+    assert "translate_pivot_greedy" in by_style
+
+    # Family prefix selects the slices only (not the greedy reference).
+    by_family = resolve_method_selection(methods, {"translate_pivot_ttc"})
+    assert "translate_pivot_ttc_n4" in by_family
+    assert "translate_pivot_greedy" not in by_family
+
+    # --skip-greedy drops the reference even without an explicit --methods.
+    no_greedy = resolve_method_selection(methods, None, skip_greedy=True)
+    assert "translate_pivot_greedy" not in no_greedy
+    assert "translate_pivot_ttc_n1" in no_greedy
+
+    assert is_greedy_reference(next(m for m in methods if m.name == "translate_pivot_greedy"))
+
+    try:
+        resolve_method_selection(methods, {"does_not_exist"})
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("expected ValueError for unknown --methods spec")
 
 
 def test_aggregate_run_dir_pass_select_and_tokens(tmp_path: Path) -> None:
@@ -228,6 +264,7 @@ if __name__ == "__main__":
     import tempfile
 
     test_e2_config_expands_pool_n1_plus_greedy_reference()
+    test_resolve_method_selection_specs_and_skip_greedy()
     with tempfile.TemporaryDirectory() as td:
         test_aggregate_run_dir_pass_select_and_tokens(P(td))
     with tempfile.TemporaryDirectory() as td:

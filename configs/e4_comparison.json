@@ -3,9 +3,9 @@
   "large_model": "qwen3-32b",
   "large_n": 1,
   "include_models": ["qwen3.5-9b", "qwen3-14b"],
-  "small_method": "english_cot_ttc",
-  "large_method": "english_cot_ttc",
+  "small_method": "translate_pivot_ttc",
+  "large_method": "translate_pivot_ttc",
   "ladder_method": null,
   "datasets": null,
-  "notes": "E4: Qwen 4B TTC N-sweep vs Qwen 32B greedy (N=1). Method filters are prefixes matching expanded names like english_cot_ttc_n4."
+  "notes": "E4: Qwen 4B TTC N-sweep vs Qwen 32B greedy (N=1). Method filters are prefixes matching expanded names like translate_pivot_ttc_n4."
 }

@@ -1059,6 +1059,52 @@ def is_nested_greedy_n1(method: InferenceMethodConfig) -> bool:
     return method.temperature is None or method.temperature <= 0.0
 
 
+def is_greedy_reference(method: InferenceMethodConfig) -> bool:
+    """True for a standalone greedy N=1 baseline (e.g. the E2 no-TTC reference)."""
+    return is_nested_greedy_n1(method) and method.nested_group_id is None
+
+
+def resolve_method_selection(
+    methods: list[InferenceMethodConfig],
+    specs: set[str] | None,
+    *,
+    skip_greedy: bool = False,
+) -> set[str] | None:
+    """Resolve a ``--methods`` filter to concrete method names.
+
+    Each spec matches a method by exact name, name prefix (``translate_pivot_ttc``
+    -> ``translate_pivot_ttc_n4``), trailing ``*`` glob, or ``prompt_style``
+    (``translate_pivot``). ``skip_greedy`` drops standalone greedy N=1 methods.
+    Returns ``None`` when no filter is requested (meaning "all methods").
+    """
+
+    def matches(method: InferenceMethodConfig, spec: str) -> bool:
+        if method.name == spec or method.prompt_style == spec:
+            return True
+        if spec.endswith("*"):
+            return method.name.startswith(spec[:-1])
+        return method.name.startswith(spec + "_") or method.name.startswith(spec + "-")
+
+    if specs:
+        selected = {m.name for m in methods if any(matches(m, spec) for spec in specs)}
+        unknown = sorted(spec for spec in specs if not any(matches(m, spec) for m in methods))
+        if unknown:
+            raise ValueError(
+                f"Unknown --methods filter(s): {unknown}. "
+                f"Available names: {sorted(m.name for m in methods)}; "
+                f"prompt styles: {sorted({m.prompt_style for m in methods})}"
+            )
+    else:
+        selected = {m.name for m in methods}
+
+    if skip_greedy:
+        selected -= {m.name for m in methods if is_greedy_reference(m)}
+
+    if not specs and not skip_greedy:
+        return None
+    return selected
+
+
 def split_nested_group_methods(
     group_methods: list[InferenceMethodConfig],
 ) -> tuple[list[InferenceMethodConfig], list[InferenceMethodConfig]]:

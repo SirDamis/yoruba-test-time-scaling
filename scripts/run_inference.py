@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 load_dotenv(ROOT / ".env")
 
 from ttcs_yoruba.config import InferenceRunConfig, load_inference_run_config
-from ttcs_yoruba.inference import run_inference_pipeline
+from ttcs_yoruba.inference import resolve_method_selection, run_inference_pipeline
 
 
 def parse_csv_set(value: str | None) -> set[str] | None:
@@ -65,7 +65,20 @@ def main() -> None:
         ),
     )
     parser.add_argument("--models", default=None, help="Comma-separated model names to run.")
-    parser.add_argument("--methods", default=None, help="Comma-separated method names to run.")
+    parser.add_argument(
+        "--methods",
+        default=None,
+        help=(
+            "Comma-separated method filters. Each matches by exact name, name prefix "
+            "(translate_pivot_ttc -> translate_pivot_ttc_n4), trailing '*' glob, or "
+            "prompt style (translate_pivot)."
+        ),
+    )
+    parser.add_argument(
+        "--skip-greedy",
+        action="store_true",
+        help="Drop standalone greedy N=1 reference methods (e.g. translate_pivot_greedy).",
+    )
     parser.add_argument("--limit", type=int, default=None, help="Optional per-dataset example limit for cloud smoke runs.")
     parser.add_argument(
         "--resume",
@@ -106,11 +119,20 @@ def main() -> None:
         parse_csv_set(args.language),
     )
 
+    try:
+        method_names = resolve_method_selection(
+            config.methods,
+            parse_csv_set(args.methods),
+            skip_greedy=args.skip_greedy,
+        )
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+
     manifest = run_inference_pipeline(
         config,
         dataset_names=dataset_names,
         model_names=parse_csv_set(args.models),
-        method_names=parse_csv_set(args.methods),
+        method_names=method_names,
         limit=args.limit,
         resume=args.resume,
         overwrite=args.overwrite,
