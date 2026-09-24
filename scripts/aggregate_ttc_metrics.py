@@ -235,7 +235,7 @@ def main() -> None:
     if args.run_id:
         run_dirs = [runs_dir / args.run_id]
     else:
-        run_dirs = find_run_dirs(runs_dir)
+        run_dirs = find_run_dirs(runs_dir, require_manifest=False)
 
     run_dirs = [path for path in run_dirs if path.exists()]
     if not run_dirs:

@@ -68,7 +68,7 @@ def main() -> None:
     results_dir = Path(args.results_dir)
     results_dir.mkdir(parents=True, exist_ok=True)
 
-    run_dirs = [runs_dir / args.run_id] if args.run_id else find_run_dirs(runs_dir)
+    run_dirs = [runs_dir / args.run_id] if args.run_id else find_run_dirs(runs_dir, require_manifest=False)
 
     if not run_dirs:
         print("No run directories found.", file=sys.stderr)

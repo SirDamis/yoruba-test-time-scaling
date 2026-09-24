@@ -242,6 +242,9 @@ results/           Evaluation outputs (gitignored)
 | `scripts/aggregate_ttc_metrics.py` | E2 metrics + plots |
 | `scripts/estimate_pool_ttc.py` | Pool-based pass@k / maj@k / diversity |
 | `scripts/plot_pool_gap.py` | Plot the pass@k − maj@k generation-vs-selection gap |
+| `scripts/plot_tokens_vs_accuracy.py` | Plot pool pass@k / maj@k against token cost |
+| `scripts/plot_tokenization_gap.py` | Plot prompt/completion token cost per condition (tokenization tax) |
+| `scripts/plot_paper_figures.py` | Representation gap, reasoning-language CIs, cross-lingual heatmap, selector, compute-matched, diversity |
 | `scripts/reselect_candidates.py` | E3 offline re-selection |
 | `scripts/compare_e4.py` | E4 small+TTC vs large greedy |
 | `scripts/extract_truncated.py` | Pull truncated generations for inspection |

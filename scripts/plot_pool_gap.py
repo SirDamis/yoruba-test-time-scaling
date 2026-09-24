@@ -74,7 +74,7 @@ def load_estimates(args: argparse.Namespace) -> list[dict[str, Any]]:
         payload = read_json(Path(args.pool_estimates))
         return list(payload.get("estimates", payload))
     runs_dir = Path(args.runs_dir)
-    run_dirs = [runs_dir / args.run_id] if args.run_id else find_run_dirs(runs_dir)
+    run_dirs = [runs_dir / args.run_id] if args.run_id else find_run_dirs(runs_dir, require_manifest=False)
     run_dirs = [path for path in run_dirs if path.exists()]
     candidates: list[dict[str, Any]] = []
     for run_dir in run_dirs:

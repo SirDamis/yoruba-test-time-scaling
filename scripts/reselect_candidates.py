@@ -79,7 +79,7 @@ def main() -> None:
     if args.run_id:
         run_dirs = [runs_dir / args.run_id]
     else:
-        run_dirs = find_run_dirs(runs_dir)
+        run_dirs = find_run_dirs(runs_dir, require_manifest=False)
 
     if args.limit_runs is not None:
         run_dirs = run_dirs[: args.limit_runs]
