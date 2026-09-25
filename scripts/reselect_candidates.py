@@ -6,7 +6,9 @@ Does not regenerate model traces. Reads ``runs/<id>/candidates.jsonl`` and write
 - ``selections_<strategy>.jsonl`` per strategy
 - ``e3_report.json`` with pass@N vs select@N tables
 
-LLM-as-judge / external verifiers are deferred.
+The ``prm`` strategy selects by a precomputed process-reward-model score; attach
+scores with ``prm/scripts/score_candidates.py`` first. The default strategies
+remain ``first,majority_vote``.
 """
 
 from __future__ import annotations
@@ -56,7 +58,7 @@ def main() -> None:
         "--strategies",
         type=str,
         default="first,majority_vote",
-        help="Comma-separated strategies: first, majority_vote.",
+        help="Comma-separated strategies: first, majority_vote, prm.",
     )
     parser.add_argument(
         "--output-dir",

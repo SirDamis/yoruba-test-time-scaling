@@ -30,6 +30,7 @@ def test_e0_vllm_config() -> None:
     assert {m.name for m in cfg.models} == {
         "qwen3.5-4b",
         "qwen3.5-9b",
+        "qwen3.5-27b",
         "gemma3-4b",
         "llama3.2-3b",
     }
@@ -44,6 +45,7 @@ def test_e0_openrouter_config() -> None:
     assert cfg.transient_retry_rounds == 5
     assert {m.name for m in cfg.models} == {
         "qwen3.5-9b",
+        "qwen3.5-27b",
         "gemma3-4b",
         "llama3.2-3b",
     }
@@ -69,6 +71,7 @@ def test_e0_ramp_router_config() -> None:
     assert {m.name for m in cfg.models} == {
         "qwen3.5-4b",
         "qwen3.5-9b",
+        "qwen3.5-27b",
         "gemma3-4b",
         "llama3.2-3b",
         "deepseek-v4-flash",

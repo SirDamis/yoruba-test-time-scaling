@@ -25,6 +25,7 @@ def test_e2_config_expands_pool_n1_plus_greedy_reference() -> None:
     assert [m.name for m in cfg.models] == [
         "qwen3.5-4b",
         "qwen3.5-9b",
+        "qwen3.5-27b",
         "qwen3-14b",
         "qwen3-32b",
     ]

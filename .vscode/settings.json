@@ -1,0 +1,6 @@
+{
+  "python.analysis.extraPaths": ["src", "prm/src"],
+  "python.autoComplete.extraPaths": ["src", "prm/src"],
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": ["tests", "prm/tests"]
+}

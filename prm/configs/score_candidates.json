@@ -1,0 +1,19 @@
+{
+  "name": "qwen2.5-math-prm-lora-yoruba",
+  "model": "Qwen/Qwen2.5-Math-7B-PRM",
+  "adapter_path": null,
+  "run_ids": [
+    "e2_afrimgsm_yor_qwen3.5-9b_translate_pivot_openrouter"
+  ],
+  "runs_dir": "runs",
+  "output_dir": "prm/results/prm_selection",
+  "aggregation": "last",
+  "max_steps": 256,
+  "max_input_tokens": null,
+  "device_map": "auto",
+  "torch_dtype": "auto",
+  "load_in_4bit": true,
+  "trust_remote_code": false,
+  "limit_groups": null,
+  "batch_size": 1
+}

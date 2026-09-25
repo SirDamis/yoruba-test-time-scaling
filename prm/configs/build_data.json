@@ -1,0 +1,20 @@
+{
+  "output_dir": "prm/data/processed",
+  "eval_fraction": 0.1,
+  "seed": 1234,
+  "sources": [
+    {
+      "type": "prm800k",
+      "enabled": true,
+      "repo_id": "vicky23456/multilingual-PRM800K",
+      "raw_dir": "prm/data/raw/multilingual-PRM800K",
+      "languages": ["en", "yor"],
+      "phase1": true,
+      "phase2_max_examples": 20000,
+      "max_examples_per_language": 50000,
+      "paths": {
+        "yor": ["prm/data/raw/yoruba/prm800k_yor.json"]
+      }
+    }
+  ]
+}

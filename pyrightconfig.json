@@ -1,0 +1,7 @@
+{
+  "include": ["src", "prm/src", "scripts", "prm/scripts", "tests", "prm/tests"],
+  "exclude": ["**/__pycache__", ".venv", "prm/reference", "prm/data", "prm/checkpoints", "prm/results"],
+  "extraPaths": ["src", "prm/src"],
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "basic"
+}

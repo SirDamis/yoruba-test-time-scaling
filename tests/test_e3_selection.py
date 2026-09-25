@@ -18,8 +18,8 @@ from ttcs_yoruba.reselection import (
 from ttcs_yoruba.selection import SUPPORTED_SELECTIONS, select_candidate
 
 
-def test_supported_selections_are_local_only() -> None:
-    assert SUPPORTED_SELECTIONS == {"first", "majority_vote"}
+def test_supported_selections_are_local() -> None:
+    assert SUPPORTED_SELECTIONS == {"first", "majority_vote", "prm"}
     try:
         select_candidate([{"sample_index": 0, "extracted_answer": "1"}], "llm_judge")
         raise AssertionError("llm_judge should be rejected")
@@ -187,7 +187,7 @@ def test_reselect_run_dir_writes_artifacts() -> None:
 
 
 if __name__ == "__main__":
-    test_supported_selections_are_local_only()
+    test_supported_selections_are_local()
     test_majority_vote_picks_most_common()
     test_first_selection()
     test_offline_reselection_report()

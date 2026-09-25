@@ -40,7 +40,7 @@ def _translated_math_example() -> InferenceExample:
 
 def test_e1_config_has_expected_strategies() -> None:
     cfg = load_inference_run_config(ROOT / "configs" / "e1_reasoning_language_vllm.json")
-    assert len(cfg.models) == 4
+    assert len(cfg.models) == 5
     assert {m.prompt_style for m in cfg.methods} == {
         "yoruba_cot",
         "english_cot",
@@ -57,6 +57,7 @@ def test_e1_vllm_config_matches_experiment_with_openai_compatible() -> None:
     assert {m.name for m in vllm.models} == {
         "qwen3.5-4b",
         "qwen3.5-9b",
+        "qwen3.5-27b",
         "gemma3-4b",
         "llama3.2-3b",
     }

@@ -94,7 +94,8 @@ def reselect_groups(
     """Apply each strategy to every candidate group.
 
     Returns mapping strategy -> list of selection records.
-    Local strategies only: ``first``, ``majority_vote``.
+    Strategies: ``first``, ``majority_vote``, ``prm`` (needs precomputed
+    ``prm_score`` on candidates).
     """
     outputs: dict[str, list[dict[str, Any]]] = {strategy: [] for strategy in strategies}
 
