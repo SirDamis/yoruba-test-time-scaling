@@ -80,6 +80,49 @@ def resolve_sep_id(tokenizer: Any, sep: str = QWEN_PRM_STEP_SEP) -> int:
     return int(ids[0])
 
 
+def ensure_pad_token_id(model: Any, tokenizer: Any) -> None:
+    """Backfill ``model.config.pad_token_id`` when the checkpoint config omits it.
+
+    ``Qwen2RMConfig``/``Qwen2Model`` read ``config.pad_token_id``; the released
+    ``config.json`` does not define it, so some transformers versions raise
+    ``AttributeError``. We also pass ``pad_token_id`` at load time; this is a
+    belt-and-braces fix for anything that reads it afterwards.
+    """
+    config = getattr(model, "config", None)
+    if config is not None and getattr(config, "pad_token_id", None) is None:
+        config.pad_token_id = tokenizer.pad_token_id or tokenizer.eos_token_id
+
+
+def load_official_model(
+    model_name: str,
+    model_kwargs: dict[str, Any],
+    tokenizer: Any,
+    *,
+    trust_remote_code: bool,
+) -> Any:
+    """Load ``Qwen2ForProcessRewardModel``, working around the missing ``pad_token_id``.
+
+    ``Qwen2RMConfig``/``Qwen2Model`` read ``config.pad_token_id``, but the released
+    ``config.json`` omits it. Prefer a config override at load time; if the
+    installed transformers still raises, rebuild the remote config explicitly.
+    """
+    from transformers import AutoModel
+
+    pad_id = tokenizer.pad_token_id or tokenizer.eos_token_id
+    try:
+        model = AutoModel.from_pretrained(model_name, pad_token_id=pad_id, **model_kwargs)
+    except AttributeError as exc:
+        if "pad_token_id" not in str(exc):
+            raise
+        from transformers import AutoConfig
+
+        config = AutoConfig.from_pretrained(model_name, trust_remote_code=trust_remote_code)
+        config.pad_token_id = pad_id
+        model = AutoModel.from_pretrained(model_name, config=config, **model_kwargs)
+    ensure_pad_token_id(model, tokenizer)
+    return model
+
+
 def _resolve_torch_dtype(torch_mod: Any, value: Any) -> Any:
     if value in (None, "auto"):
         return "auto"
@@ -144,9 +187,12 @@ class PrmScorer:
             )
 
         if self.config.prm_interface == "qwen2.5-math-prm":
-            from transformers import AutoModel
-
-            model = AutoModel.from_pretrained(self.config.model, **model_kwargs)
+            model = load_official_model(
+                self.config.model,
+                model_kwargs,
+                tokenizer,
+                trust_remote_code=self.config.trust_remote_code,
+            )
             self.sep_id = resolve_sep_id(tokenizer, self.config.step_sep_token)
         else:
             from transformers import AutoModelForCausalLM

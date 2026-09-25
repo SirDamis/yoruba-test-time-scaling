@@ -15,7 +15,7 @@ from dataclasses import fields as dataclass_fields
 from typing import Any
 
 from .config import TrainConfig, resolve_path
-from .model import INTERFACES, resolve_prm_tokens, resolve_sep_id
+from .model import INTERFACES, load_official_model, resolve_prm_tokens, resolve_sep_id
 from .steps import QWEN_STEP_TAG, render_sep_joined, split_tagged_process
 
 DEFAULT_LORA_TARGETS = [
@@ -213,9 +213,12 @@ def run_training(config: TrainConfig) -> str:
         model_kwargs["torch_dtype"] = "auto"
 
     if config.prm_interface == "qwen2.5-math-prm":
-        from transformers import AutoModel
-
-        model = AutoModel.from_pretrained(config.model, **model_kwargs)
+        model = load_official_model(
+            config.model,
+            model_kwargs,
+            tokenizer,
+            trust_remote_code=config.trust_remote_code,
+        )
         sep_id = resolve_sep_id(tokenizer, config.step_sep_token)
         tokenize = _build_official_tokenize(
             tokenizer,
