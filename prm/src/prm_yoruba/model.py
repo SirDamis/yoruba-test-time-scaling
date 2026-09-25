@@ -114,8 +114,14 @@ def load_official_model(
     config = AutoConfig.from_pretrained(model_name, trust_remote_code=trust_remote_code)
     if getattr(config, "pad_token_id", None) is None:
         config.pad_token_id = pad_id
+    # The remote modeling code calls ``DynamicCache.from_legacy_cache`` (removed in
+    # newer transformers) whenever ``use_cache`` is on. We never use the KV cache,
+    # so disable it both on the config and on the loaded model.
+    config.use_cache = False
     model = AutoModel.from_pretrained(model_name, config=config, **model_kwargs)
     ensure_pad_token_id(model, tokenizer)
+    if getattr(model, "config", None) is not None:
+        model.config.use_cache = False
     return model
 
 
@@ -249,7 +255,7 @@ class PrmScorer:
 
         tensor = self._torch.tensor([input_ids], device=self._input_device())
         with self._torch.no_grad():
-            outputs = self._model(tensor)
+            outputs = self._model(tensor, use_cache=False)
         logits = getattr(outputs, "logits", None)
         if logits is None:
             logits = outputs[0]  # [1, seq, 2]
