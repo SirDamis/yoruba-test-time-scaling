@@ -103,22 +103,18 @@ def load_official_model(
     """Load ``Qwen2ForProcessRewardModel``, working around the missing ``pad_token_id``.
 
     ``Qwen2RMConfig``/``Qwen2Model`` read ``config.pad_token_id``, but the released
-    ``config.json`` omits it. Prefer a config override at load time; if the
-    installed transformers still raises, rebuild the remote config explicitly.
+    ``config.json`` omits it. Passing ``pad_token_id`` as a ``from_pretrained``
+    kwarg does **not** help here (the remote config ignores it, so it reaches the
+    model constructor and raises ``TypeError``); instead we build the remote
+    config explicitly, set the attribute, and load with ``config=config``.
     """
-    from transformers import AutoModel
+    from transformers import AutoConfig, AutoModel
 
     pad_id = tokenizer.pad_token_id or tokenizer.eos_token_id
-    try:
-        model = AutoModel.from_pretrained(model_name, pad_token_id=pad_id, **model_kwargs)
-    except AttributeError as exc:
-        if "pad_token_id" not in str(exc):
-            raise
-        from transformers import AutoConfig
-
-        config = AutoConfig.from_pretrained(model_name, trust_remote_code=trust_remote_code)
+    config = AutoConfig.from_pretrained(model_name, trust_remote_code=trust_remote_code)
+    if getattr(config, "pad_token_id", None) is None:
         config.pad_token_id = pad_id
-        model = AutoModel.from_pretrained(model_name, config=config, **model_kwargs)
+    model = AutoModel.from_pretrained(model_name, config=config, **model_kwargs)
     ensure_pad_token_id(model, tokenizer)
     return model
 
