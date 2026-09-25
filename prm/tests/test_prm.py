@@ -13,16 +13,20 @@ sys.path.insert(0, str(PRM_ROOT / "src"))
 
 from ttcs_yoruba.selection import select_candidate
 
-from prm_yoruba.config import BuildConfig
+from prm_yoruba.config import BuildConfig, ScoreConfig
 from prm_yoruba.data import build_dataset, validate_prm800k_row, write_built_dataset
 from prm_yoruba.grading import is_correct
-from prm_yoruba.model import aggregate_scores, resolve_prm_tokens
+from prm_yoruba.model import aggregate_scores, resolve_prm_tokens, resolve_sep_id
 from prm_yoruba.steps import (
+    QWEN_PRM_STEP_SEP,
     QWEN_STEP_TAG,
     render_scoring_input,
+    render_sep_joined,
     render_tagged_process,
     split_into_steps,
+    split_tagged_process,
 )
+from prm_yoruba.train import _steps_and_labels
 
 
 class _FakeTokenizer:
@@ -182,6 +186,35 @@ def test_resolve_prm_tokens_drops_leading_token():
     tokens = resolve_prm_tokens(tokenizer, "qwen3.5-9b")
     assert tokens.candidate_tokens == [100, 101]
     assert tokens.step_tag_id == 201
+
+
+def test_official_prm_interface_helpers():
+    process = f"s1{QWEN_STEP_TAG}s2{QWEN_STEP_TAG}"
+    assert split_tagged_process(process, QWEN_STEP_TAG) == ["s1", "s2"]
+    assert render_sep_joined(["s1", "s2"]) == f"s1{QWEN_PRM_STEP_SEP}s2{QWEN_PRM_STEP_SEP}"
+
+    tokenizer = _FakeTokenizer({"<extra_0>": [151665]})
+    assert resolve_sep_id(tokenizer) == 151665
+
+
+def test_steps_and_labels_prefers_stored_steps():
+    row = {
+        "question": "Q",
+        "process": f"s1{QWEN_STEP_TAG}s2{QWEN_STEP_TAG}",
+        "steps": ["s1", "s2"],
+        "label": ["+", "-"],
+    }
+    assert _steps_and_labels(row) == (["s1", "s2"], ["+", "-"])
+    # Falls back to splitting ``process`` and truncates mismatched labels.
+    row2 = {"question": "Q", "process": f"s1{QWEN_STEP_TAG}s2{QWEN_STEP_TAG}", "label": ["+"]}
+    assert _steps_and_labels(row2) == (["s1"], ["+"])
+
+
+def test_scoreconfig_defaults_to_official_prm():
+    config = ScoreConfig.from_dict({"name": "x", "model": "Qwen/Qwen2.5-Math-PRM-7B"})
+    assert config.prm_interface == "qwen2.5-math-prm"
+    assert config.trust_remote_code is True
+    assert config.step_sep_token == "<extra_0>"
 
 
 def test_aggregate_scores():

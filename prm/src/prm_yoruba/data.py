@@ -17,7 +17,7 @@ from typing import Any
 from ttcs_yoruba.io_utils import write_json, write_jsonl
 
 from .config import BuildConfig, resolve_path
-from .steps import QWEN_STEP_TAG
+from .steps import QWEN_STEP_TAG, split_tagged_process
 
 # Released multilingual PRM800K / Math-Shepherd (de, en, es, fr, ru, sw, zh — no Yoruba).
 PRM800K_REPO_ID = "vicky23456/multilingual-PRM800K"
@@ -168,6 +168,7 @@ def build_prm800k_rows(
                         "answer_type": "number",
                         "question": valid["question"],
                         "process": valid["process"],
+                        "steps": split_tagged_process(valid["process"], step_tag),
                         "label": valid["label"],
                         "n_steps": len(valid["label"]),
                         "problem_source": "supplied" if supplied else "released",

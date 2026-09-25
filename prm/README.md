@@ -7,10 +7,12 @@ Findings of EMNLP 2025). The original code is kept verbatim under
 [`reference/`](reference/) for traceability; everything else here is our
 adaptation.
 
-The verifier is a `Qwen/Qwen2.5-Math-PRM-7B` checkpoint fine-tuned with **LoRA**
-on **English PRM800K + a Yoruba translation** (true per-step `+`/`-` labels), then
-used for Best-of-N selection over the E2 candidate pools. Only these step labels
-are used for training.
+The verifier is `Qwen/Qwen2.5-Math-PRM-7B` (an official
+`Qwen2ForProcessRewardModel`), fine-tuned with **LoRA** on **English PRM800K +
+a Yoruba translation** (true per-step labels) and used for Best-of-N selection
+over the E2 candidate pools. It reads a per-step reward from its `<extra_0>`
+reward head. Only these step labels are used for training — no outcome-derived
+supervision anywhere.
 
 ## What changed vs. the reference
 
@@ -146,19 +148,27 @@ against the same `run_id` first); otherwise it fails with a clear error.
 
 ## Preprocessing contract
 
-**Training** follows `reference/ft.py`: `question + " " + process` is tokenized,
-the step tag is `\n\n\n\n\n` (Qwen/Llama) or `ки` (Mistral-SFT), and the verdict
-tokens are a space-prefixed good ` +` / bad ` -` (Mistral uses bare `+`/`-`).
-`prm_yoruba.model.resolve_prm_tokens` derives the ids from the tokenizer and
-requires exactly two candidate tokens.
+Two interfaces, selected by `prm_interface`:
 
-**Scoring** re-segments each candidate on our own delimiters instead of the
-reference's blank-line split: one step per `\n`, the `\n\nFinal answer:` line
-dropped (bold `**Final answer:**` too), echoed question/translation blocks
-removed, and `- `/`* `/`Step k:`/`1.` prefixes stripped. Steps are re-joined with
-the step tag. Traces longer than the PRM context drop **leading** steps so the
-final step survives for `last` aggregation; `max_steps` defaults to 256 and
-`max_input_tokens` (default: model context) pins the limit.
+**`qwen2.5-math-prm` (default)** — official `Qwen2ForProcessRewardModel`
+checkpoints. Loaded with `AutoModel` + `trust_remote_code=True`. Each candidate
+is segmented on our `\n` delimiter (the `\n\nFinal answer:` line is dropped,
+echoed question/translation removed, list/`Step k:` prefixes stripped), then the
+steps are rendered as the assistant turn `s1<extra_0>s2<extra_0>…` inside the
+model's chat template (system + user + assistant). The 2-class reward head is
+read at the `<extra_0>` positions: `softmax(logits, -1)[..., 1]` gives that
+step's reward in `[0, 1]`. Fine-tuning trains the same head with cross-entropy
+(labels 0/1 at `<extra_0>` positions, `-100` elsewhere) under LoRA adapters.
+
+**`token_classifier`** — the reference repo's `+`/`-` LM-token method for
+`Qwen2.5-Math-7B-Instruct`-style checkpoints: `question + " " + process`, step
+tag `\n\n\n\n\n` (Qwen) or `ки` (Mistral), good/bad tokens ` +` / ` -`.
+`prm_yoruba.model.resolve_prm_tokens` derives the ids and requires exactly two
+candidate tokens.
+
+Long traces drop **leading** steps to fit the context (the final step is kept
+for `last` aggregation); `max_steps` defaults to 256 and `max_input_tokens`
+defaults to the model context.
 
 ## Reproducing checks locally (no GPU)
 

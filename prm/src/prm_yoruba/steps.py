@@ -39,6 +39,13 @@ QWEN_BAD_TOKEN = " -"
 MISTRAL_GOOD_TOKEN = "+"
 MISTRAL_BAD_TOKEN = "-"
 
+# Official Qwen2.5-Math-PRM-* interface: one special token after each step and a
+# 2-class reward head read at those positions.
+QWEN_PRM_STEP_SEP = "<extra_0>"
+DEFAULT_PRM_SYSTEM_PROMPT = (
+    "Please reason step by step, and put your final answer within \\boxed{}."
+)
+
 
 def strip_final_answer(text: str) -> str:
     """Drop trailing ``Final answer:`` line(s) so they are not scored as steps."""
@@ -135,6 +142,25 @@ def render_tagged_process(steps: list[str], step_tag: str) -> str:
     """Render steps as ``step<tag>step<tag>...`` (one tag per step)."""
     cleaned = [clean_step_text(step) for step in steps if clean_step_text(step)]
     return step_tag.join(cleaned) + step_tag if cleaned else ""
+
+
+def split_tagged_process(process: str, step_tag: str) -> list[str]:
+    """Recover steps from a ``process`` string built with ``render_tagged_process``."""
+    parts = str(process or "").split(step_tag)
+    if parts and parts[-1].strip() == "":
+        parts = parts[:-1]
+    return [part.strip() for part in parts if part.strip()]
+
+
+def render_sep_joined(steps: list[str], sep: str = QWEN_PRM_STEP_SEP) -> str:
+    """Render steps as the official PRM assistant content: ``s1<sep>s2<sep>``.
+
+    Positions are preserved (an empty step still gets its separator) so the
+    number of ``<extra_0>`` tokens always equals ``len(steps)`` and stays aligned
+    with per-step labels during training.
+    """
+    cleaned = [clean_step_text(step) for step in steps]
+    return sep.join(cleaned) + sep if cleaned else ""
 
 
 def render_scoring_input(question: str, steps: list[str], step_tag: str) -> str:

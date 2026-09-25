@@ -1,6 +1,9 @@
 {
   "name": "qwen2.5-math-prm-lora-yoruba",
   "model": "Qwen/Qwen2.5-Math-PRM-7B",
+  "prm_interface": "qwen2.5-math-prm",
+  "step_sep_token": "<extra_0>",
+  "system_prompt": "Please reason step by step, and put your final answer within \\boxed{}.",
   "adapter_path": null,
   "run_ids": [
     "e2_afrimgsm_yor_qwen3.5-9b_translate_pivot_openrouter"
@@ -12,8 +15,8 @@
   "max_input_tokens": null,
   "device_map": "auto",
   "torch_dtype": "auto",
-  "load_in_4bit": true,
-  "trust_remote_code": false,
+  "load_in_4bit": false,
+  "trust_remote_code": true,
   "limit_groups": null,
   "batch_size": 1
 }

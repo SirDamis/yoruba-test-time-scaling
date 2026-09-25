@@ -66,7 +66,10 @@ class TrainConfig:
     lora_dropout: float = 0.05
     lora_target_modules: list[str] = field(default_factory=list)
     load_in_4bit: bool = False
-    trust_remote_code: bool = False
+    trust_remote_code: bool = True
+    prm_interface: str = "qwen2.5-math-prm"
+    step_sep_token: str = "<extra_0>"
+    system_prompt: str = "Please reason step by step, and put your final answer within \\boxed{}."
 
     @classmethod
     def from_dict(cls, row: dict[str, Any]) -> "TrainConfig":
@@ -97,7 +100,15 @@ class TrainConfig:
             lora_dropout=float(row.get("lora_dropout", 0.05)),
             lora_target_modules=list(row.get("lora_target_modules", [])),
             load_in_4bit=bool(row.get("load_in_4bit", False)),
-            trust_remote_code=bool(row.get("trust_remote_code", False)),
+            trust_remote_code=bool(row.get("trust_remote_code", True)),
+            prm_interface=str(row.get("prm_interface", "qwen2.5-math-prm")),
+            step_sep_token=str(row.get("step_sep_token", "<extra_0>")),
+            system_prompt=str(
+                row.get(
+                    "system_prompt",
+                    "Please reason step by step, and put your final answer within \\boxed{}.",
+                )
+            ),
         )
 
 
@@ -113,7 +124,10 @@ class ScoreConfig:
     device_map: str = "auto"
     torch_dtype: str = "auto"
     load_in_4bit: bool = False
-    trust_remote_code: bool = False
+    trust_remote_code: bool = True
+    prm_interface: str = "qwen2.5-math-prm"
+    step_sep_token: str = "<extra_0>"
+    system_prompt: str = "Please reason step by step, and put your final answer within \\boxed{}."
     max_steps: int = 256
     max_input_tokens: int | None = None
     limit_groups: int | None = None
@@ -132,7 +146,15 @@ class ScoreConfig:
             device_map=str(row.get("device_map", "auto")),
             torch_dtype=str(row.get("torch_dtype", "auto")),
             load_in_4bit=bool(row.get("load_in_4bit", False)),
-            trust_remote_code=bool(row.get("trust_remote_code", False)),
+            trust_remote_code=bool(row.get("trust_remote_code", True)),
+            prm_interface=str(row.get("prm_interface", "qwen2.5-math-prm")),
+            step_sep_token=str(row.get("step_sep_token", "<extra_0>")),
+            system_prompt=str(
+                row.get(
+                    "system_prompt",
+                    "Please reason step by step, and put your final answer within \\boxed{}.",
+                )
+            ),
             max_steps=int(row.get("max_steps", 256)),
             max_input_tokens=None
             if row.get("max_input_tokens") is None
