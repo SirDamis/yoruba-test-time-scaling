@@ -20,6 +20,7 @@ from ttcs_yoruba.metrics import dedupe_candidate_rows
 from ttcs_yoruba.reselection import (
     build_selection_record,
     group_candidates,
+    pass_at_n_for_group,
     print_e3_report_table,
     summarize_reselection,
 )
@@ -42,6 +43,16 @@ def main() -> None:
     parser.add_argument("--aggregation", default=None, help="last, max, mean, or min.")
     parser.add_argument("--max-steps", type=int, default=None)
     parser.add_argument("--limit-groups", type=int, default=None)
+    parser.add_argument(
+        "--per-example",
+        action="store_true",
+        help="Print one line per verifier selection (N, example, pick, gold, correct).",
+    )
+    parser.add_argument(
+        "--no-progress",
+        action="store_true",
+        help="Suppress the running per-N selection summary.",
+    )
     parser.add_argument(
         "--run-id",
         action="append",
@@ -84,6 +95,26 @@ def main() -> None:
     selections: list[dict] = []
     all_scored: list[dict] = []
 
+    condition_stats: dict[tuple[str, str, str, int], dict[str, int]] = {}
+    current_condition: tuple[str, str, str, int] | None = None
+
+    def flush(condition: tuple[str, str, str, int]) -> None:
+        stats = condition_stats.get(condition)
+        if not stats or stats["examples"] == 0:
+            return
+        examples = stats["examples"]
+        pass_rate = stats["pass"] / examples
+        select_rate = stats["select"] / examples
+        _, _, method, n = condition
+        print(
+            f"[{method}] N={n}  examples={examples}  "
+            f"pass@N={pass_rate:.1%}  prm@N={select_rate:.1%}  gap={select_rate - pass_rate:+.1%}",
+            flush=True,
+        )
+
+    if not args.no_progress:
+        print("PRM verifier selection (per N, vs ground truth):", flush=True)
+
     processed = 0
     for run_id, path in files:
         rows = dedupe_candidate_rows(read_jsonl(path))
@@ -95,21 +126,55 @@ def main() -> None:
             scored = attach_prm_scores(candidates, scorer, max_steps=config.max_steps)
             groups[key] = scored
             all_scored.extend(scored)
+            passed = pass_at_n_for_group(scored)
             result = select_candidate(scored, "prm")
-            selections.append(
-                build_selection_record(
-                    candidates=scored,
-                    strategy="prm",
-                    selected_sample_index=result.selected_sample_index,
-                    selected_answer=result.selected_answer,
-                    vote_counts=result.vote_counts,
-                    metadata=result.metadata,
-                    run_id=run_id,
-                )
+            record = build_selection_record(
+                candidates=scored,
+                strategy="prm",
+                selected_sample_index=result.selected_sample_index,
+                selected_answer=result.selected_answer,
+                vote_counts=result.vote_counts,
+                metadata=result.metadata,
+                run_id=run_id,
             )
+            selections.append(record)
+
+            condition = (
+                str(record["dataset"]),
+                str(record["model"]),
+                str(record["method"]),
+                int(record["n"]),
+            )
+            if condition != current_condition:
+                if not args.no_progress and current_condition is not None:
+                    flush(current_condition)
+                current_condition = condition
+            stats = condition_stats.setdefault(
+                condition, {"examples": 0, "pass": 0, "select": 0}
+            )
+            stats["examples"] += 1
+            stats["pass"] += int(bool(passed))
+            stats["select"] += int(bool(record["is_correct"]))
+
+            if args.per_example:
+                prm_score = (record.get("selection_metadata") or {}).get("prm_score")
+                score_str = (
+                    f"{float(prm_score):.3f}"
+                    if isinstance(prm_score, (int, float))
+                    else "n/a"
+                )
+                print(
+                    f"  N={condition[3]}  {record['example_id']}  prm={score_str}  "
+                    f"selected={record['selected_answer']!r}  gold={record['gold_answer']!r}  "
+                    f"correct={'yes' if record['is_correct'] else 'no'}",
+                    flush=True,
+                )
             processed += 1
         if config.limit_groups is not None and processed >= config.limit_groups:
             break
+
+    if not args.no_progress and current_condition is not None:
+        flush(current_condition)
 
     write_jsonl(output_dir / "scores.jsonl", all_scored)
     write_jsonl(output_dir / "selections_prm.jsonl", selections)

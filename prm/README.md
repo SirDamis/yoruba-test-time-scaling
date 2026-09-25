@@ -122,7 +122,17 @@ uv run python prm/scripts/score_candidates.py --config prm/configs/score_candida
 Set `adapter_path` in the config (or pass `--adapter-path`) to use the fine-tuned
 adapter; leave it `null` for the base PRM. `aggregation` is one of
 `last|max|mean|min`. `max_input_tokens` (default `null`) optionally truncates long
-traces; the result carries a `truncated` flag. Writes:
+traces; the result carries a `truncated` flag.
+
+While scoring, it prints a running summary as each N finishes, comparing the
+PRM's pick against the ground truth:
+
+```text
+[translate_pivot_ttc_n1] N=1  examples=250  pass@N=42.0%  prm@N=38.0%  gap=-4.0%
+```
+
+Add `--per-example` for one line per selection (`N`, example, PRM score, pick,
+gold, correct); `--no-progress` silences the per-N lines. Writes:
 
 - `prm/results/prm_selection/scores.jsonl` — every candidate with `prm_score`
 - `prm/results/prm_selection/selections_prm.jsonl` — one pick per group
