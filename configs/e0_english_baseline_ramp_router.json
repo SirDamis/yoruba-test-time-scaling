@@ -63,6 +63,27 @@
       }
     },
     {
+      "name": "qwen3.5-27b",
+      "backend": "responses_api",
+      "model": "qwen/qwen3.5-27b",
+      "size_label": "27B",
+      "cost_per_1k_tokens": 0.0,
+      "base_url": "https://api.router.com/v1",
+      "api_key_env": "ROUTER_KEY",
+      "backend_kwargs": {
+        "send_seed": true,
+        "max_retries": 3,
+        "retry_initial_backoff_s": 1.0,
+        "retry_max_backoff_s": 30.0,
+        "headers": {
+          "X-Request-Id": "yoruba-ttcs",
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+        },
+        "reasoning_effort": "none",
+        "impersonate": "chrome"
+      }
+    },
+    {
       "name": "gemma3-4b",
       "backend": "responses_api",
       "model": "google/gemma-3-4b-it",

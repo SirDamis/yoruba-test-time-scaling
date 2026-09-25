@@ -118,6 +118,25 @@
       }
     },
     {
+      "name": "qwen3.5-27b",
+      "backend": "openai_compatible",
+      "model": "Qwen/Qwen3.5-27B",
+      "size_label": "27B",
+      "size_category": "large",
+      "model_type": "instruct",
+      "cost_per_1k_tokens": 0.0,
+      "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
+      "api_key_env": "OPENAI_COMPATIBLE_API_KEY",
+      "backend_kwargs": {
+        "send_seed": true,
+        "extra_body": {
+          "chat_template_kwargs": {
+            "enable_thinking": false
+          }
+        }
+      }
+    },
+    {
       "name": "gemma3-4b",
       "backend": "openai_compatible",
       "model": "google/gemma-3-4b-it",

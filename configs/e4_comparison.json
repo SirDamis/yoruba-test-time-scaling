@@ -2,7 +2,7 @@
   "small_model": "qwen3.5-4b",
   "large_model": "qwen3-32b",
   "large_n": 1,
-  "include_models": ["qwen3.5-9b", "qwen3-14b"],
+  "include_models": ["qwen3.5-27b", "qwen3.5-9b", "qwen3-14b"],
   "small_method": "translate_pivot_ttc",
   "large_method": "translate_pivot_ttc",
   "ladder_method": null,
