@@ -167,7 +167,7 @@ def test_runs_source_is_rejected(tmp_path):
 
 def test_resolve_prm_tokens_qwen_and_mistral():
     qwen = _FakeTokenizer({" + -": [100, 101], " \n\n\n\n\n": [200, 201]})
-    tokens = resolve_prm_tokens(qwen, "Qwen/Qwen2.5-Math-7B-PRM")
+    tokens = resolve_prm_tokens(qwen, "Qwen/Qwen2.5-Math-PRM-7B")
     assert tokens.candidate_tokens == [100, 101]
     assert tokens.step_tag_id == 201
 

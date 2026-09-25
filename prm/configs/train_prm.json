@@ -1,6 +1,6 @@
 {
   "run_name": "qwen2.5-math-prm-lora-yoruba",
-  "model": "Qwen/Qwen2.5-Math-7B-PRM",
+  "model": "Qwen/Qwen2.5-Math-PRM-7B",
   "train_data": "prm/data/processed/train.jsonl",
   "eval_data": "prm/data/processed/eval.jsonl",
   "output_dir": "prm/checkpoints",

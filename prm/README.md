@@ -7,7 +7,7 @@ Findings of EMNLP 2025). The original code is kept verbatim under
 [`reference/`](reference/) for traceability; everything else here is our
 adaptation.
 
-The verifier is a `Qwen/Qwen2.5-Math-7B-PRM` checkpoint fine-tuned with **LoRA**
+The verifier is a `Qwen/Qwen2.5-Math-PRM-7B` checkpoint fine-tuned with **LoRA**
 on **English PRM800K + a Yoruba translation** (true per-step `+`/`-` labels), then
 used for Best-of-N selection over the E2 candidate pools. Only these step labels
 are used for training.
@@ -16,7 +16,7 @@ are used for training.
 
 | Aspect | Reference | Here |
 |--------|-----------|------|
-| Base model | `Qwen/Qwen2.5-Math-7B-Instruct` | `Qwen/Qwen2.5-Math-7B-PRM` |
+| Base model | `Qwen/Qwen2.5-Math-7B-Instruct` | `Qwen/Qwen2.5-Math-PRM-7B` |
 | Fine-tuning | full weights, DeepSpeed, W&B, Hub push | **LoRA**, config-driven, no side effects |
 | Training data | translated PRM800K / Math-Shepherd | **English PRM800K + supplied Yoruba translation**, step-labelled |
 | Candidate generation | `infer-mgsm.py` (N=64 per seed) | reuse E2 pools (`runs/*/candidates.jsonl`) |
