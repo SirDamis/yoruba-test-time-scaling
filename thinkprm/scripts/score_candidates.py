@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from dataclasses import replace
 from pathlib import Path
 
@@ -75,6 +76,12 @@ def main() -> None:
         help="Suppress the running per-N selection summary.",
     )
     parser.add_argument(
+        "--progress-every",
+        type=int,
+        default=1,
+        help="Print a live progress line every N groups (default 1; 0 disables).",
+    )
+    parser.add_argument(
         "--run-id",
         action="append",
         default=None,
@@ -106,12 +113,27 @@ def main() -> None:
     if not files:
         raise SystemExit(f"No candidates.jsonl found under {config.runs_dir}")
 
+    progress_every = max(0, int(args.progress_every))
+    total_groups = 0
+    if not args.no_progress and progress_every:
+        total_groups = sum(
+            len(group_candidates(dedupe_candidate_rows(read_jsonl(path))))
+            for _, path in files
+        )
+        if config.limit_groups is not None:
+            total_groups = min(total_groups, config.limit_groups)
+        print(
+            f"Scoring {total_groups} groups across {len(files)} run(s); loading model...",
+            flush=True,
+        )
+
     scorer = ThinkPrmScorer(config)
     scorer.load()
     print(
         f"Loaded {config.model}"
         + (f" + adapter {config.adapter_path}" if config.adapter_path else "")
-        + f" (aggregation={config.aggregation}, n_verifications={config.n_verifications})"
+        + f" (aggregation={config.aggregation}, n_verifications={config.n_verifications})",
+        flush=True,
     )
 
     output_dir = resolve_path(config.output_dir)
@@ -140,6 +162,7 @@ def main() -> None:
         print("ThinkPRM verifier selection (per N, vs ground truth):", flush=True)
 
     processed = 0
+    start_time = time.time()
     for run_id, path in files:
         rows = dedupe_candidate_rows(read_jsonl(path))
         run_groups = group_candidates(rows)
@@ -178,6 +201,8 @@ def main() -> None:
                 if not args.no_progress and current_condition is not None:
                     flush(current_condition)
                 current_condition = condition
+                if not args.no_progress and progress_every:
+                    print(f">> {condition[2]} (n={condition[3]})", flush=True)
             stats = condition_stats.setdefault(
                 condition, {"examples": 0, "pass": 0, "select": 0}
             )
@@ -199,6 +224,21 @@ def main() -> None:
                     flush=True,
                 )
             processed += 1
+            if (
+                not args.no_progress
+                and progress_every
+                and (processed % progress_every == 0 or processed == total_groups)
+            ):
+                elapsed = time.time() - start_time
+                rate = processed / elapsed if elapsed > 0 else 0.0
+                eta = (total_groups - processed) / rate if rate > 0 else 0.0
+                accuracy = stats["select"] / stats["examples"] if stats["examples"] else 0.0
+                print(
+                    f"  [{processed}/{total_groups}] {condition[2]} n={condition[3]} "
+                    f"acc={accuracy:.1%} | {rate:.2f} grp/s | elapsed {elapsed / 60:.1f}m "
+                    f"| eta {eta / 60:.1f}m",
+                    flush=True,
+                )
         if config.limit_groups is not None and processed >= config.limit_groups:
             break
 
