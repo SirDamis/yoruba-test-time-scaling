@@ -165,6 +165,9 @@ class ScoreConfig:
     trust_remote_code: bool = False
     limit_groups: int | None = None
     batch_size: int = 4
+    # N conditions to select/report. Empty means "all present". N=1 and N=3 are
+    # dropped by default (greedy baseline covers N=1).
+    n_values: list[int] = field(default_factory=lambda: [2, 4, 8, 16, 32, 64])
 
     @classmethod
     def from_dict(cls, row: dict[str, Any]) -> "ScoreConfig":
@@ -193,4 +196,9 @@ class ScoreConfig:
             trust_remote_code=bool(row.get("trust_remote_code", False)),
             limit_groups=None if row.get("limit_groups") is None else int(row["limit_groups"]),
             batch_size=int(row.get("batch_size", 4)),
+            n_values=(
+                [int(value) for value in row["n_values"]]
+                if row.get("n_values") is not None
+                else [2, 4, 8, 16, 32, 64]
+            ),
         )

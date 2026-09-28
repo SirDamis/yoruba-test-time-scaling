@@ -294,6 +294,18 @@ def test_scoreconfig_defaults():
     assert config.aggregation == "prefix"
     assert config.n_verifications == 1
     assert config.trust_remote_code is False
+    assert config.n_values == [2, 4, 8, 16, 32, 64]
+
+
+def test_scoreconfig_n_values_can_be_overridden():
+    config = ScoreConfig.from_dict(
+        {"name": "x", "model": "launch/ThinkPRM-1.5B", "n_values": [4, 16]}
+    )
+    assert config.n_values == [4, 16]
+    # empty list = "all N"
+    assert ScoreConfig.from_dict(
+        {"name": "x", "model": "m", "n_values": []}
+    ).n_values == []
 
 
 def test_collectconfig_defaults():

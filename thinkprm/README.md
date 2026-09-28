@@ -113,6 +113,31 @@ their `P(Yes)` (the paper's parallel scaling). `aggregation` is `prefix`
 (default, the decision probability) or `last|max|mean|min` over the per-step
 `1/0` labels.
 
+**Scoring order and cost.** E2 pools are *nested*: `n1` is a prefix of `n2`,
+which is a prefix of `n4`, and so on, and a candidate's ThinkPRM score does not
+depend on N. The scorer therefore walks **example-outer / N-inner** and scores
+each unique trace exactly once, reusing it across N (64 traces per example for a
+full sweep, instead of `1+2+4+…+64 = 127`). Only the N conditions in the config's
+`n_values` (default `[2,4,8,16,32,64]`) are reported — `n=1`/`n=3` are dropped,
+since the `*_greedy` baseline covers N=1. Override with `--n-values` (or
+`--n-values all` to report every N present):
+
+```bash
+uv run python thinkprm/scripts/score_candidates.py \
+  --config thinkprm/configs/score_candidates.json
+```
+
+Progress is printed live per `(example, N)`, including whether the verifier's
+pick was correct and its score, plus a candidate-level ETA:
+
+```text
+[ex 1/115] afrimgsm_yor_test_000001 n=64 (+32 new, 64/7360 scored)
+    | sel=OK pick='18' gold='18' prm=0.32 | N acc=100.0% | ... cand/s | eta ...m
+```
+
+Tune with `--progress-every` / `--no-progress`, or add `--per-example` for one
+line per pick.
+
 While scoring it prints a running per-N summary, e.g.:
 
 ```text
