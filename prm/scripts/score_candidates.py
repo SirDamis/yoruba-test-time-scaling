@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from dataclasses import replace
 from pathlib import Path
 
@@ -32,6 +33,20 @@ from prm_yoruba.model import PrmScorer
 from prm_yoruba.select import attach_prm_scores
 
 
+def _parse_n_values(value: str | None) -> set[int] | None:
+    if not value or str(value).strip().lower() in {"all", "*"}:
+        return None
+    return {int(part) for part in str(value).split(",") if part.strip()}
+
+
+def _pool_id(row: dict, key: tuple) -> str:
+    """Identity shared by the N conditions of a nested pool (else the method)."""
+    metadata = row.get("metadata") or {}
+    if isinstance(metadata, dict) and metadata.get("nested_group_id"):
+        return str(metadata["nested_group_id"])
+    return str(key[2])
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Score E2 candidate pools with a discriminative PRM and select Best-of-N."
@@ -44,6 +59,15 @@ def main() -> None:
     parser.add_argument("--max-steps", type=int, default=None)
     parser.add_argument("--limit-groups", type=int, default=None)
     parser.add_argument(
+        "--n-values",
+        default=None,
+        help=(
+            "Comma-separated N conditions to select/report, e.g. 2,4,8,16,32,64 "
+            "('all' disables the filter). Overrides the config's n_values "
+            "(default 2,4,8,16,32,64; N=1 is usually the greedy baseline)."
+        ),
+    )
+    parser.add_argument(
         "--per-example",
         action="store_true",
         help="Print one line per verifier selection (N, example, pick, gold, correct).",
@@ -52,6 +76,12 @@ def main() -> None:
         "--no-progress",
         action="store_true",
         help="Suppress the running per-N selection summary.",
+    )
+    parser.add_argument(
+        "--progress-every",
+        type=int,
+        default=1,
+        help="Print a live progress line every N processed groups (default 1; 0 disables).",
     )
     parser.add_argument(
         "--run-id",
@@ -87,45 +117,100 @@ def main() -> None:
     print(
         f"Loaded {config.model}"
         + (f" + adapter {config.adapter_path}" if config.adapter_path else "")
-        + f" (aggregation={config.aggregation})"
+        + f" (aggregation={config.aggregation})",
+        flush=True,
     )
 
+    if args.n_values is not None:
+        n_filter = _parse_n_values(args.n_values)
+    elif config.n_values:
+        n_filter = set(config.n_values)
+    else:
+        n_filter = None
+
+    raw_groups: dict[tuple[str, str, str, int, str], list[dict]] = {}
+    for _, path in files:
+        rows = dedupe_candidate_rows(read_jsonl(path))
+        for key, candidates in group_candidates(rows).items():
+            if n_filter is None or key[3] in n_filter:
+                raw_groups[key] = candidates
+
+    # Plan the unique traces to score. Nested pools share candidates across N,
+    # so each distinct (example, pool, sample_index) is scored exactly once.
+    planned: set[tuple] = set()
+    for key, candidates in raw_groups.items():
+        pool = _pool_id(candidates[0], key)
+        for candidate in candidates:
+            planned.add((key[0], key[1], key[4], pool, int(candidate.get("sample_index", 0))))
+    total_unique = len(planned)
+    total_groups = len(raw_groups)
+    examples = sorted({(key[0], key[1], key[4]) for key in raw_groups})
+    total_examples = len(examples)
+
+    progress_every = max(0, int(args.progress_every))
+    if not args.no_progress and progress_every:
+        print(
+            f"Scoring {total_unique} unique candidates | {total_groups} conditions | "
+            f"{total_examples} examples"
+            + (f" | N ∈ {sorted(n_filter)}" if n_filter is not None else ""),
+            flush=True,
+        )
+        print("PRM verifier selection (per N, vs ground truth):", flush=True)
+
     output_dir = resolve_path(config.output_dir)
+    cache: dict[tuple, dict] = {}
     groups: dict[tuple[str, str, str, int, str], list[dict]] = {}
     selections: list[dict] = []
-    all_scored: list[dict] = []
-
     condition_stats: dict[tuple[str, str, str, int], dict[str, int]] = {}
-    current_condition: tuple[str, str, str, int] | None = None
+    scored_count = 0
+    processed_groups = 0
+    start_time = time.time()
 
     def flush(condition: tuple[str, str, str, int]) -> None:
         stats = condition_stats.get(condition)
         if not stats or stats["examples"] == 0:
             return
-        examples = stats["examples"]
-        pass_rate = stats["pass"] / examples
-        select_rate = stats["select"] / examples
+        examples_count = stats["examples"]
+        pass_rate = stats["pass"] / examples_count
+        select_rate = stats["select"] / examples_count
         _, _, method, n = condition
         print(
-            f"[{method}] N={n}  examples={examples}  "
-            f"pass@N={pass_rate:.1%}  prm@N={select_rate:.1%}  gap={select_rate - pass_rate:+.1%}",
+            f"[{method}] N={n}  examples={examples_count}  "
+            f"pass@N={pass_rate:.1%}  prm@N={select_rate:.1%}  "
+            f"gap={select_rate - pass_rate:+.1%}",
             flush=True,
         )
 
-    if not args.no_progress:
-        print("PRM verifier selection (per N, vs ground truth):", flush=True)
-
-    processed = 0
-    for run_id, path in files:
-        rows = dedupe_candidate_rows(read_jsonl(path))
-        run_groups = group_candidates(rows)
-        for key in sorted(run_groups):
-            if config.limit_groups is not None and processed >= config.limit_groups:
+    for example_index, example in enumerate(examples, start=1):
+        example_keys = sorted(
+            (key for key in raw_groups if (key[0], key[1], key[4]) == example),
+            key=lambda key: (key[3], str(key[2])),
+        )
+        for key in example_keys:
+            if config.limit_groups is not None and processed_groups >= config.limit_groups:
                 break
-            candidates = run_groups[key]
-            scored = attach_prm_scores(candidates, scorer, max_steps=config.max_steps)
+            candidates = raw_groups.pop(key)
+            pool = _pool_id(candidates[0], key)
+
+            def cache_key(row: dict) -> tuple:
+                return (key[0], key[1], key[4], pool, int(row.get("sample_index", 0)))
+
+            to_score = [candidate for candidate in candidates if cache_key(candidate) not in cache]
+            if to_score:
+                for row in attach_prm_scores(to_score, scorer, max_steps=config.max_steps):
+                    cache[cache_key(row)] = row
+                scored_count += len(to_score)
+
+            scored = []
+            for candidate in candidates:
+                row = dict(cache[cache_key(candidate)])
+                # Cached rows keep the method/n of the first condition that scored
+                # them; re-label them for the N condition being reported.
+                row["method"] = key[2]
+                row["n"] = key[3]
+                scored.append(row)
             groups[key] = scored
-            all_scored.extend(scored)
+
             passed = pass_at_n_for_group(scored)
             result = select_candidate(scored, "prm")
             record = build_selection_record(
@@ -135,7 +220,7 @@ def main() -> None:
                 selected_answer=result.selected_answer,
                 vote_counts=result.vote_counts,
                 metadata=result.metadata,
-                run_id=run_id,
+                run_id=str(candidates[0].get("run_id", "")),
             )
             selections.append(record)
 
@@ -145,10 +230,6 @@ def main() -> None:
                 str(record["method"]),
                 int(record["n"]),
             )
-            if condition != current_condition:
-                if not args.no_progress and current_condition is not None:
-                    flush(current_condition)
-                current_condition = condition
             stats = condition_stats.setdefault(
                 condition, {"examples": 0, "pass": 0, "select": 0}
             )
@@ -169,14 +250,41 @@ def main() -> None:
                     f"correct={'yes' if record['is_correct'] else 'no'}",
                     flush=True,
                 )
-            processed += 1
-        if config.limit_groups is not None and processed >= config.limit_groups:
+
+            processed_groups += 1
+            if (
+                not args.no_progress
+                and progress_every
+                and (processed_groups % progress_every == 0 or processed_groups == total_groups)
+            ):
+                elapsed = time.time() - start_time
+                rate = scored_count / elapsed if elapsed > 0 else 0.0
+                eta = (total_unique - scored_count) / rate if rate > 0 else 0.0
+                accuracy = stats["select"] / stats["examples"] if stats["examples"] else 0.0
+                pick_score = (record.get("selection_metadata") or {}).get("prm_score")
+                pick_score_str = (
+                    f"{float(pick_score):.2f}"
+                    if isinstance(pick_score, (int, float))
+                    else "n/a"
+                )
+                outcome = "OK" if record["is_correct"] else "MISS"
+                print(
+                    f"  [ex {example_index}/{total_examples}] {example[2]} n={condition[3]} "
+                    f"(+{len(to_score)} new, {scored_count}/{total_unique} scored) "
+                    f"| sel={outcome} pick={record['selected_answer']!r} "
+                    f"gold={record['gold_answer']!r} prm={pick_score_str} "
+                    f"| N acc={accuracy:.1%} | {rate:.2f} cand/s | elapsed {elapsed / 60:.1f}m "
+                    f"| eta {eta / 60:.1f}m",
+                    flush=True,
+                )
+        if config.limit_groups is not None and processed_groups >= config.limit_groups:
             break
 
-    if not args.no_progress and current_condition is not None:
-        flush(current_condition)
+    if not args.no_progress:
+        for condition in sorted(condition_stats, key=lambda key: (key[3], str(key[2]))):
+            flush(condition)
 
-    write_jsonl(output_dir / "scores.jsonl", all_scored)
+    write_jsonl(output_dir / "scores.jsonl", list(cache.values()))
     write_jsonl(output_dir / "selections_prm.jsonl", selections)
 
     report_rows = summarize_reselection(groups, {"prm": selections})
@@ -184,7 +292,9 @@ def main() -> None:
         "model": config.model,
         "adapter_path": config.adapter_path,
         "aggregation": config.aggregation,
+        "n_values": sorted(n_filter) if n_filter is not None else None,
         "num_groups": len(groups),
+        "num_unique_candidates": scored_count,
         "num_conditions": len(report_rows),
         "conditions": report_rows,
         "paths": {

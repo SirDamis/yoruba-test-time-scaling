@@ -217,6 +217,15 @@ def test_scoreconfig_defaults_to_official_prm():
     assert config.step_sep_token == "<extra_0>"
 
 
+def test_scoreconfig_default_n_values():
+    config = ScoreConfig.from_dict({"name": "x", "model": "Qwen/Qwen2.5-Math-PRM-7B"})
+    assert config.n_values == [2, 4, 8, 16, 32, 64]
+    overridden = ScoreConfig.from_dict(
+        {"name": "x", "model": "Qwen/Qwen2.5-Math-PRM-7B", "n_values": [4, 16]}
+    )
+    assert overridden.n_values == [4, 16]
+
+
 def test_aggregate_scores():
     assert aggregate_scores([0.1, 0.9, 0.5], "last") == pytest.approx(0.5)
     assert aggregate_scores([0.1, 0.9, 0.5], "max") == pytest.approx(0.9)

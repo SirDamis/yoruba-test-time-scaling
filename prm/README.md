@@ -124,22 +124,39 @@ adapter; leave it `null` for the base PRM. `aggregation` is one of
 `last|max|mean|min`. `max_input_tokens` (default `null`) optionally truncates long
 traces; the result carries a `truncated` flag.
 
-While scoring, it prints a running summary as each N finishes, comparing the
-PRM's pick against the ground truth:
+**Scoring order and cost.** E2 pools are *nested* (`n2` is a prefix of `n4`, …)
+and a candidate's PRM score does not depend on N. The scorer walks
+**example-outer / N-inner** and scores each unique trace once, reusing it across
+N (64 traces per example for a full sweep, not `1+2+4+…+64 = 127`). Only the
+config's `n_values` (default `[2,4,8,16,32,64]`) are reported — `n=1`/`n=3` are
+dropped, since the `*_greedy` baseline covers N=1. Override with `--n-values`
+(or `--n-values all`).
+
+Progress prints live per `(example, N)`, including whether the PRM's pick was
+correct and its score, plus a candidate-level ETA:
+
+```text
+[ex 1/115] afrimgsm_yor_test_000001 n=64 (+32 new, 64/7360 scored)
+    | sel=OK pick='18' gold='18' prm=0.32 | N acc=100.0% | ... cand/s | eta ...m
+```
+
+It also prints a per-N summary as each N finishes, comparing the PRM's pick
+against the ground truth:
 
 ```text
 [translate_pivot_ttc_n1] N=1  examples=250  pass@N=42.0%  prm@N=38.0%  gap=-4.0%
 ```
 
-Add `--per-example` for one line per selection (`N`, example, PRM score, pick,
-gold, correct); `--no-progress` silences the per-N lines. Writes:
+Add `--per-example` for a separate line per selection (`N`, example, PRM score,
+pick, gold, correct); `--no-progress` silences all progress; `--progress-every N`
+throttles the live lines. Writes:
 
-- `prm/results/prm_selection/scores.jsonl` — every candidate with `prm_score`
+- `prm/results/prm_selection/scores.jsonl` — each unique candidate with `prm_score`
 - `prm/results/prm_selection/selections_prm.jsonl` — one pick per group
 - `prm/results/prm_selection/summary.json` — pass@N vs select@N
 
 Other flags: `--run-id` (repeatable), `--runs-dir`, `--output-dir`,
-`--aggregation`, `--max-steps`, `--limit-groups`.
+`--n-values`, `--aggregation`, `--max-steps`, `--limit-groups`.
 
 ## Selection integration
 

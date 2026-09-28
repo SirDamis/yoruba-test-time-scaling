@@ -30,7 +30,7 @@ from ttcs_yoruba.selection import select_candidate
 
 from thinkprm_yoruba.config import ScoreConfig, load_json, resolve_path
 from thinkprm_yoruba.model import ThinkPrmScorer
-from thinkprm_yoruba.select import attach_thinkprm_scores
+from thinkprm_yoruba.select import attach_thinkprm_scores, question_of, steps_of
 
 
 def iter_candidate_files(runs_dir: str, run_ids: list[str] | None) -> list[tuple[str, Path]]:
@@ -61,6 +61,57 @@ def _pool_id(row: dict, key: tuple) -> str:
     if isinstance(metadata, dict) and metadata.get("nested_group_id"):
         return str(metadata["nested_group_id"])
     return str(key[2])
+
+
+def _print_verification_flow(
+    record: dict,
+    rows: list[dict],
+    *,
+    max_chars: int,
+    show_all: bool,
+) -> None:
+    """Print the verifier's step-by-step reasoning and judgments for a group."""
+    selected_index = int(record.get("selected_sample_index", -1))
+    chosen = rows if show_all else [
+        row for row in rows if int(row.get("sample_index", -2)) == selected_index
+    ]
+    for row in chosen:
+        sample_index = int(row.get("sample_index", -1))
+        is_selected = sample_index == selected_index
+        raw_prm = row.get("prm_score")
+        prm_str = f"{float(raw_prm):.3f}" if isinstance(raw_prm, (int, float)) else "n/a"
+        prefix = row.get("thinkprm_prefix_score")
+        prefix_str = f"{float(prefix):.3f}" if isinstance(prefix, (int, float)) else "n/a"
+        header = (
+            f"\n=== {record.get('example_id')} | N={record.get('n')} | sample={sample_index}"
+            + (" (selected)" if is_selected else "")
+            + f" | prm={prm_str} | prefix_P(Yes)={prefix_str}"
+            + f" | answer={row.get('extracted_answer')!r} gold={record.get('gold_answer')!r}"
+        )
+        if is_selected:
+            header += " | correct=yes" if record.get("is_correct") else " | correct=no"
+        print(header + " ===", flush=True)
+
+        steps = steps_of(row)
+        print(f"Problem: {question_of(row)}", flush=True)
+        print(f"Solution ({len(steps)} steps):", flush=True)
+        for index, step in enumerate(steps, 1):
+            print(f"  {index}. {step}", flush=True)
+
+        labels = list(row.get("thinkprm_step_labels") or [])
+        scores = list(row.get("thinkprm_step_scores") or [])
+        if labels:
+            judgments = ", ".join(
+                f"{index}:{int(label)}({float(score):.2f})"
+                for index, (label, score) in enumerate(zip(labels, scores), 1)
+            )
+            print(f"Step judgments (1=correct, 0=incorrect): {judgments}", flush=True)
+
+        for chain_index, output in enumerate(row.get("thinkprm_outputs") or []):
+            text = str(output)
+            if max_chars and len(text) > max_chars:
+                text = text[:max_chars] + f" …[{len(text) - max_chars} chars truncated]"
+            print(f"Verification chain [{chain_index}]:\n{text}", flush=True)
 
 
 def main() -> None:
@@ -103,6 +154,25 @@ def main() -> None:
         type=int,
         default=1,
         help="Print a live progress line every N processed groups (default 1; 0 disables).",
+    )
+    parser.add_argument(
+        "--show-verification",
+        action="store_true",
+        help=(
+            "Print the verifier's step-by-step reasoning and per-step judgments "
+            "(off by default; off is recommended for full runs)."
+        ),
+    )
+    parser.add_argument(
+        "--show-all-candidates",
+        action="store_true",
+        help="With --show-verification, print every candidate (default: only the selected one).",
+    )
+    parser.add_argument(
+        "--show-verification-chars",
+        type=int,
+        default=2000,
+        help="Truncate each verification chain to N chars with --show-verification (0 = no limit).",
     )
     parser.add_argument(
         "--run-id",
@@ -264,6 +334,14 @@ def main() -> None:
             stats["examples"] += 1
             stats["pass"] += int(bool(passed))
             stats["select"] += int(bool(record["is_correct"]))
+
+            if args.show_verification:
+                _print_verification_flow(
+                    record,
+                    scored,
+                    max_chars=args.show_verification_chars,
+                    show_all=args.show_all_candidates,
+                )
 
             if args.per_example:
                 prm_score = (record.get("selection_metadata") or {}).get("prm_score")

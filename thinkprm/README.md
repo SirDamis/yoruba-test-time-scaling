@@ -138,6 +138,23 @@ pick was correct and its score, plus a candidate-level ETA:
 Tune with `--progress-every` / `--no-progress`, or add `--per-example` for one
 line per pick.
 
+To inspect the verifier's actual reasoning, add `--show-verification` (off by
+default; avoid it on a full run). For each reported group it prints the problem,
+the candidate's solution steps, the per-step `1`/`0` judgments, and the raw
+verification chain:
+
+```bash
+uv run python thinkprm/scripts/score_candidates.py \
+  --config thinkprm/configs/score_candidates.json \
+  --show-verification --limit-groups 5
+```
+
+`--show-all-candidates` prints every candidate in the group (default: just the
+selected one); `--show-verification-chars` truncates each chain (default 2000,
+`0` = full). Note ThinkPRM judges each step *correct/incorrect* (a discrete
+`1`/`0`) and the ranking score is the whole-prefix `P(Yes)` — continuous
+per-step scores come from the discriminative PRM (`prm/`), not ThinkPRM.
+
 While scoring it prints a running per-N summary, e.g.:
 
 ```text
