@@ -131,22 +131,28 @@ class ThinkPrmScorer:
             self._tokenizer, question, solution, self.config.instruction
         )
 
-    def _fit_prompt(self, question: str, steps: list[str]) -> tuple[str, bool]:
-        """Render the prompt, dropping leading steps if ``max_input_tokens`` is set."""
+    def _fit_prompt(
+        self, question: str, steps: list[str]
+    ) -> tuple[str, list[str], bool]:
+        """Render the prompt, dropping leading steps if ``max_input_tokens`` is set.
+
+        Returns ``(prompt, kept_steps, truncated)``; ``kept_steps`` is what the
+        prompt actually verifies so per-step labels stay aligned after trimming.
+        """
         prompt = self._render_prompt(question, steps)
         limit = self.config.max_input_tokens
         if not limit:
-            return prompt, False
+            return prompt, list(steps), False
         input_ids = self._tokenizer(prompt, add_special_tokens=False)["input_ids"]
         if len(input_ids) <= limit:
-            return prompt, False
+            return prompt, list(steps), False
         kept = list(steps)
         while len(kept) > 1:
             kept = kept[1:]
             prompt = self._render_prompt(question, kept)
             if len(self._tokenizer(prompt, add_special_tokens=False)["input_ids"]) <= limit:
-                return prompt, True
-        return prompt, True
+                return prompt, kept, True
+        return prompt, kept, True
 
     def _generate(self, prompts: list[str]) -> list[list[str]]:
         """Generate ``n_verifications`` completions per prompt (list-of-lists)."""

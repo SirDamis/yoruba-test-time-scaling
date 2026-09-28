@@ -22,7 +22,7 @@ from thinkprm_yoruba.data import (
     split_rows,
     write_built_dataset,
 )
-from thinkprm_yoruba.model import aggregate_step_scores
+from thinkprm_yoruba.model import ThinkPrmScorer, aggregate_step_scores
 from thinkprm_yoruba.parse import (
     extract_boxed_decisions,
     extract_decision,
@@ -300,6 +300,70 @@ def test_collectconfig_defaults():
     config = CollectConfig.from_dict({"prm_data": ["a.jsonl"]})
     assert config.prm_data == ["a.jsonl"]
     assert config.samples_per_example == 4
+
+
+class _StubTokenizer:
+    def apply_chat_template(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        tokenize: bool = False,
+        add_generation_prompt: bool = False,
+    ) -> str:
+        text = "\n".join(m["content"] for m in messages)
+        if add_generation_prompt:
+            text += "\n<think>\n"
+        return text
+
+    def __call__(self, text: str, add_special_tokens: bool = False) -> dict[str, list[int]]:
+        return {"input_ids": list(range(len(str(text))))}
+
+
+def test_fit_prompt_returns_kept_steps_and_truncation_flag():
+    scorer = ThinkPrmScorer(ScoreConfig.from_dict({"name": "x", "model": "m"}))
+    scorer._tokenizer = _StubTokenizer()
+    prompt, kept, truncated = scorer._fit_prompt("Q", ["a", "b", "c"])
+    assert kept == ["a", "b", "c"]
+    assert truncated is False
+    assert "<think>" in prompt
+
+    tiny = ThinkPrmScorer(
+        ScoreConfig.from_dict({"name": "x", "model": "m", "max_input_tokens": 1})
+    )
+    tiny._tokenizer = _StubTokenizer()
+    _, kept_steps, was_truncated = tiny._fit_prompt("Q", ["a", "b", "c"])
+    assert was_truncated is True
+    assert len(kept_steps) < 3
+
+
+def test_score_batch_with_stubbed_generation():
+    scorer = ThinkPrmScorer(ScoreConfig.from_dict({"name": "x", "model": "m"}))
+    scorer._tokenizer = _StubTokenizer()
+    scorer._model = object()  # skip load()
+    scorer._yes_id = 1
+    scorer._no_id = 2
+    scorer._generate = lambda prompts: [  # type: ignore[method-assign]
+        ["Step 1 ok \\boxed{correct}\n</think>"] for _ in prompts
+    ]
+    scorer._decision_probabilities = lambda contexts: [  # type: ignore[method-assign]
+        0.75 for _ in contexts
+    ]
+    results = scorer.score_batch(["Q"], [["a", "b"]])
+    assert results[0]["prefix_score"] == pytest.approx(0.75)
+    assert results[0]["score"] == pytest.approx(0.75)
+    assert results[0]["step_labels"] == [1, 0]
+    assert results[0]["n_steps"] == 2
+
+
+def test_score_batch_empty_steps_returns_zero():
+    scorer = ThinkPrmScorer(ScoreConfig.from_dict({"name": "x", "model": "m"}))
+    scorer._tokenizer = _StubTokenizer()
+    scorer._model = object()
+    scorer._yes_id = 1
+    scorer._no_id = 2
+    results = scorer.score_batch(["Q"], [[]])
+    assert results[0]["score"] == 0.0
+    assert results[0]["step_labels"] == []
 
 
 def test_trainconfig_requires_fields():
