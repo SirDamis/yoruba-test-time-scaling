@@ -225,6 +225,8 @@ configs/           Experiment configs, one per endpoint (<exp>_<endpoint>.json)
 data/normalized/   Yoruba JSONL datasets (gitignored; download locally)
 scripts/           CLI entrypoints
 src/ttcs_yoruba/   Library code (prompting, backends, inference, metrics, selection)
+prm/               Discriminative PRM verifier (see prm/README.md)
+thinkprm/          Generative ThinkPRM verifier (see thinkprm/README.md)
 tests/             Unit tests (.venv/bin/python -m pytest tests -q)
 runs/              Inference artifacts (gitignored)
 results/           Evaluation outputs (gitignored)

@@ -10,5 +10,5 @@ dependencies = []
 package = false
 
 [tool.pytest.ini_options]
-pythonpath = ["src", "prm/src"]
+pythonpath = ["src", "prm/src", "thinkprm/src"]
 testpaths = ["tests"]

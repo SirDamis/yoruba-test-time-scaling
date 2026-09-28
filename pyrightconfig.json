@@ -1,7 +1,7 @@
 {
-  "include": ["src", "prm/src", "scripts", "prm/scripts", "tests", "prm/tests"],
-  "exclude": ["**/__pycache__", ".venv", "prm/reference", "prm/data", "prm/checkpoints", "prm/results"],
-  "extraPaths": ["src", "prm/src"],
+  "include": ["src", "prm/src", "thinkprm/src", "scripts", "prm/scripts", "thinkprm/scripts", "tests", "prm/tests", "thinkprm/tests"],
+  "exclude": ["**/__pycache__", ".venv", "prm/reference", "prm/data", "prm/checkpoints", "prm/results", "thinkprm/reference", "thinkprm/data", "thinkprm/checkpoints", "thinkprm/results"],
+  "extraPaths": ["src", "prm/src", "thinkprm/src"],
   "pythonVersion": "3.12",
   "typeCheckingMode": "basic"
 }

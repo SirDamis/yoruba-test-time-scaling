@@ -1,0 +1,21 @@
+# ThinkPRM extras (install on top of the repo requirements.txt).
+# Run these on the cloud GPU box, not the local CPU machine:
+#   uv pip install -r thinkprm/requirements-thinkprm.txt
+#
+# torch/transformers/accelerate/datasets are needed for train + score; data
+# collection only needs the base repo requirements + a teacher endpoint.
+
+torch
+transformers>=4.45
+datasets
+accelerate
+peft>=0.13
+sentencepiece                # R1-Distill / Qwen tokenizers
+
+# Only needed for QLoRA (``load_in_4bit: true`` in the configs).
+bitsandbytes>=0.44
+
+# Optional reference-server path for the cloned ThinkPRM code under
+# thinkprm/reference/ (vLLM / sglang). Not required by thinkprm/src.
+# vllm
+# sglang[all]>=0.4.8.post1

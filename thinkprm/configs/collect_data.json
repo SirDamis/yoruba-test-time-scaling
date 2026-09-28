@@ -1,0 +1,25 @@
+{
+  "output_dir": "thinkprm/data/processed",
+  "prm_data": [
+    "prm/data/processed/all.jsonl"
+  ],
+  "teacher": {
+    "name": "qwq-32b-preview",
+    "backend": "openai_compatible",
+    "model": "Qwen/QwQ-32B-Preview",
+    "size_label": "32B",
+    "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
+    "api_key_env": "OPENAI_COMPATIBLE_API_KEY"
+  },
+  "system_prompt": "You are a careful mathematical verifier.",
+  "temperature": 0.7,
+  "top_p": 0.95,
+  "max_tokens": 4096,
+  "samples_per_example": 4,
+  "max_cots_per_example": 1,
+  "max_cot_tokens": null,
+  "max_examples": 1000,
+  "eval_fraction": 0.1,
+  "request_timeout_s": 300.0,
+  "seed": 1234
+}

@@ -7,8 +7,9 @@ from .extraction import normalize_for_match, numeric_match_key
 
 
 SUPPORTED_SELECTIONS = {"first", "majority_vote", "prm"}
-# ``verifier`` is an alias for the process-reward-model strategy.
-PRM_ALIASES = {"prm", "verifier"}
+# ``verifier`` is an alias for the process-reward-model strategy; ``thinkprm``
+# is a generative PRM that writes the same ``prm_score`` field.
+PRM_ALIASES = {"prm", "verifier", "thinkprm"}
 # Alias kept for callers that used the old local-only constant.
 SUPPORTED_LOCAL_SELECTIONS = SUPPORTED_SELECTIONS
 
@@ -29,8 +30,8 @@ def select_candidate(
 ) -> SelectionResult:
     """Select one candidate from a sampled set.
 
-    Supported strategies: ``first``, ``majority_vote``, ``prm`` (alias
-    ``verifier``).
+    Supported strategies: ``first``, ``majority_vote``, ``prm`` (aliases
+    ``verifier`` and ``thinkprm``).
 
     When ``answer_type == "number"`` (or is present on candidate metadata),
     majority vote pools answers by numeric value so ``11`` and ``11.0`` agree.
@@ -137,7 +138,8 @@ def _prm_select(candidates: list[dict[str, object]]) -> SelectionResult:
     if not scored:
         raise ValueError(
             "prm selection requires a precomputed 'prm_score' on candidates "
-            "(or candidate metadata). Run prm/scripts/score_candidates.py first."
+            "(or candidate metadata). Run prm/scripts/score_candidates.py or "
+            "thinkprm/scripts/score_candidates.py first."
         )
 
     # Highest score wins; ties fall back to the earliest sample for determinism.

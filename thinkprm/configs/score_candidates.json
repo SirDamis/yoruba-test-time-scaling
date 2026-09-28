@@ -1,0 +1,24 @@
+{
+  "name": "thinkprm-1.5b-yoruba",
+  "model": "launch/ThinkPRM-1.5B",
+  "adapter_path": null,
+  "run_ids": [
+    "e2_afrimgsm_yor_qwen3.5-9b_translate_pivot_openrouter"
+  ],
+  "runs_dir": "runs",
+  "output_dir": "thinkprm/results/thinkprm_selection",
+  "aggregation": "prefix",
+  "max_steps": 256,
+  "max_input_tokens": null,
+  "max_new_tokens": 2048,
+  "temperature": 0.7,
+  "top_p": 0.95,
+  "n_verifications": 1,
+  "decision_temperature": 1.0,
+  "device_map": "auto",
+  "torch_dtype": "auto",
+  "load_in_4bit": false,
+  "trust_remote_code": false,
+  "limit_groups": null,
+  "batch_size": 4
+}
