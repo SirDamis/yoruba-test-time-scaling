@@ -114,7 +114,7 @@ uv run python scripts/run_inference.py --config configs/e1_reasoning_language_ra
 
 ### E2 — TTC scaling
 
-The winning E1 strategy (currently `translate_pivot`) is expanded to `_n1..._n64`: N ∈ {1, 2, 3, 4, 8, 16, 32, 64} with `nested_n: true`. Every N — including N=1 — is a prefix of one stochastic pool sampled at max N (temp 0.7, top-p 0.95, `max_tokens=4096`), so the scaling curve is a single consistent process. A separate `translate_pivot_greedy` method (temp 0, `selection=first`) is generated as a labelled no-TTC reference rather than being folded into the curve.
+The winning E1 strategy (currently `translate_pivot`) is expanded to `_n1..._n64`: N ∈ {1, 2, 4, 8, 16, 32, 64} with `nested_n: true`. Every N — including N=1 — is a prefix of one stochastic pool sampled at max N (temp 0.7, top-p 0.95, `max_tokens=4096`), so the scaling curve is a single consistent process. A separate `translate_pivot_greedy` method (temp 0, `selection=first`) is generated as a labelled no-TTC reference rather than being folded into the curve.
 
 ```bash
 uv run python scripts/run_inference.py --config configs/e2_ttc_scaling_vllm.json

@@ -33,7 +33,6 @@ def test_e2_config_expands_pool_n1_plus_greedy_reference() -> None:
     assert set(methods) == {
         "translate_pivot_ttc_n1",
         "translate_pivot_ttc_n2",
-        "translate_pivot_ttc_n3",
         "translate_pivot_ttc_n4",
         "translate_pivot_ttc_n8",
         "translate_pivot_ttc_n16",
