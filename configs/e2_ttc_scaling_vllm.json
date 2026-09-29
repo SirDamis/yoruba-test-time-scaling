@@ -181,7 +181,6 @@
       "prompt_style": "translate_pivot",
       "selection": "majority_vote",
       "n_values": [
-        1,
         2,
         4,
         8,
